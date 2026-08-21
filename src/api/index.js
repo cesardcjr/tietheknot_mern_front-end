@@ -13,7 +13,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    if ([401, 403].includes(err.response?.status)) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/";
@@ -42,22 +42,17 @@ export const getGuests = () => api.get("/data/guests");
 export const addGuest = (data) => api.post("/data/guests", data);
 export const updateGuest = (id, data) => api.put(`/data/guests/${id}`, data);
 export const deleteGuest = (id) => api.delete(`/data/guests/${id}`);
-export const bulkSetGuests = (data) => api.put("/data/guests", data);
-
-// Sponsors
-export const updatePrimarySponsors = (data) =>
-  api.put("/data/primary-sponsors", data);
-export const updateSecondarySponsors = (data) =>
-  api.put("/data/secondary-sponsors", data);
 
 // Seating
 export const updateSeatingSettings = (data) =>
   api.put("/data/seating-settings", data);
-export const updateSeating = (data) => api.put("/data/seating", data);
 export const updatePresidentialSettings = (data) =>
   api.put("/data/presidential-settings", data);
-export const updatePresidentialSeating = (data) =>
-  api.put("/data/presidential-seating", data);
+export const assignSeat = (data) => api.post("/data/seating/assign", data);
+export const removeSeat = (data) => api.post("/data/seating/remove", data);
+export const resetSeatingPlan = () => api.delete("/data/seating/reset");
+export const deleteSeatingTable = (type, tableNumber) =>
+  api.delete(`/data/seating/tables/${type}/${tableNumber}`);
 
 // Expenses
 export const updateExpenseSettings = (data) =>

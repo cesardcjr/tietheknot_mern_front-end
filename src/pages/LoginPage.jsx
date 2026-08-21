@@ -133,11 +133,12 @@ export default function LoginPage() {
         {mode === "login" ? (
           <>
             <div className="form-group" style={{ marginBottom: "1rem" }}>
-              <label>Username</label>
+              <label htmlFor="login-username">Username</label>
               <div className="input-icon-wrap">
                 <i className="fa fa-user" />
                 <input
                   type="text"
+                  id="login-username"
                   name="username"
                   placeholder="Enter username"
                   autoComplete="username"
@@ -148,11 +149,12 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-              <label>Password</label>
+              <label htmlFor="login-password">Password</label>
               <div className="input-icon-wrap">
                 <i className="fa fa-lock" />
                 <input
                   type="password"
+                  id="login-password"
                   name="password"
                   placeholder="Enter password"
                   autoComplete="current-password"
@@ -195,11 +197,12 @@ export default function LoginPage() {
         ) : (
           <>
             <div className="form-group" style={{ marginBottom: "0.9rem" }}>
-              <label>Full Name *</label>
+              <label htmlFor="register-full-name">Full Name *</label>
               <div className="input-icon-wrap">
                 <i className="fa fa-id-card" />
                 <input
                   type="text"
+                  id="register-full-name"
                   name="fullName"
                   placeholder="Your full name"
                   value={form.fullName}
@@ -209,11 +212,12 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: "0.9rem" }}>
-              <label>Username *</label>
+              <label htmlFor="register-username">Username *</label>
               <div className="input-icon-wrap">
                 <i className="fa fa-user" />
                 <input
                   type="text"
+                  id="register-username"
                   name="username"
                   placeholder="Choose a username"
                   value={form.username}
@@ -223,11 +227,12 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: "0.9rem" }}>
-              <label>Password *</label>
+              <label htmlFor="register-password">Password *</label>
               <div className="input-icon-wrap">
                 <i className="fa fa-lock" />
                 <input
                   type="password"
+                  id="register-password"
                   name="password"
                   placeholder="At least 6 characters"
                   value={form.password}
@@ -237,11 +242,12 @@ export default function LoginPage() {
               </div>
             </div>
             <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-              <label>Contact Number *</label>
+              <label htmlFor="register-contact">Contact Number *</label>
               <div className="input-icon-wrap">
                 <i className="fa fa-phone" />
                 <input
                   type="tel"
+                  id="register-contact"
                   name="contactNumber"
                   placeholder="e.g. 09171234567"
                   value={form.contactNumber}

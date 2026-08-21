@@ -2,8 +2,9 @@ import React, { useState } from "react";
 import { useApp } from "../context/AppContext";
 import CircleProgress from "../components/CircleProgress";
 import Swal from "sweetalert2";
-import { fmt, parseTime } from "../utils/helpers";
+import { fmt } from "../utils/helpers";
 import * as api from "../api";
+import Modal from "../components/Modal";
 
 export default function Dashboard({ onNavigate }) {
   const { eventData, setEventData } = useApp();
@@ -36,7 +37,7 @@ export default function Dashboard({ onNavigate }) {
 
   // Calculate countdown
   const calculateCountdown = (targetDate) => {
-    const target = new Date(targetDate);
+    const target = new Date(`${targetDate}T00:00:00`);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const daysLeft = Math.ceil((target - today) / (1000 * 60 * 60 * 24));
@@ -127,9 +128,10 @@ export default function Dashboard({ onNavigate }) {
   };
 
   const expectedGuests = guestSettings?.expectedGuests || 0;
+  const totalGuestPax = guests.reduce((total, guest) => total + Number(guest.pax || 1), 0);
   const guestPct =
     expectedGuests > 0
-      ? Math.min(100, (guests.length / expectedGuests) * 100)
+      ? Math.min(100, (totalGuestPax / expectedGuests) * 100)
       : 0;
 
   const totalTables = seatingSettings?.tableCount || 0;
@@ -163,7 +165,7 @@ export default function Dashboard({ onNavigate }) {
       page: "guests",
       icon: "fa-users",
       label: "Guests",
-      value: `${guests.length} / ${expectedGuests}`,
+      value: `${totalGuestPax} / ${expectedGuests} pax`,
       pct: guestPct,
       color: "#226b45",
       ring: true,
@@ -243,7 +245,7 @@ export default function Dashboard({ onNavigate }) {
                   <div>
                     <h4>{event.title}</h4>
                     <small>
-                      {new Date(event.targetDate).toLocaleDateString()}
+                      {new Date(`${event.targetDate}T00:00:00`).toLocaleDateString()}
                     </small>
                   </div>
                   <div className="event-actions">
@@ -258,7 +260,9 @@ export default function Dashboard({ onNavigate }) {
                       <i className="fa fa-edit" /> Edit
                     </button>
                     <button
+                      type="button"
                       className="btn-icon"
+                      aria-label="Delete event"
                       onClick={deleteEvent}
                       style={{
                         background: "none",
@@ -325,7 +329,8 @@ export default function Dashboard({ onNavigate }) {
 
       <div className="dashboard-grid">
         {cards.map((c) => (
-          <div
+          <button
+            type="button"
             key={c.page}
             className="dash-card"
             onClick={() => onNavigate(c.page)}
@@ -358,24 +363,13 @@ export default function Dashboard({ onNavigate }) {
             <div className="dash-card-arrow">
               <i className="fa fa-arrow-right" />
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
       {/* Event Modal */}
       {showEventModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Create Your Event</h3>
-              <button
-                onClick={() => setShowEventModal(false)}
-                className="modal-close"
-              >
-                <i className="fa fa-times" />
-              </button>
-            </div>
-            <div className="modal-body">
+        <Modal title={event ? "Edit Event" : "Create Your Event"} onClose={() => setShowEventModal(false)}>
               <div className="form-group">
                 <label>Event Title</label>
                 <input
@@ -397,7 +391,6 @@ export default function Dashboard({ onNavigate }) {
                   }
                 />
               </div>
-            </div>
             <div className="modal-footer">
               <button
                 onClick={() => setShowEventModal(false)}
@@ -421,8 +414,7 @@ export default function Dashboard({ onNavigate }) {
                 )}
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

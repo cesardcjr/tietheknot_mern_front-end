@@ -9,13 +9,22 @@ export default function Seating() {
   const { eventData, setEventData } = useApp();
   const [tableModal, setTableModal] = useState(null); // {type, num}
   const [acSearch, setAcSearch] = useState('');
-  const [saving, setSaving] = useState(false);
 
   if (!eventData) return <div className="page-loading"><i className="fa fa-spinner fa-spin" /> Loading…</div>;
 
   const { seatingSettings = {}, seating = {}, presidentialSettings = {}, presidentialSeating = {}, guests = [] } = eventData;
 
   const patchData = (updates) => setEventData(prev => ({ ...prev, ...updates }));
+  const guestFor = (reference) => guests.find(g => String(g._id) === String(reference) || g.name === reference);
+  const guestsFor = (references = []) => references.map(guestFor).filter(Boolean);
+  const occupiedPax = (tableGuests = []) => tableGuests.reduce((total, guest) => total + Number(guest.pax || 1), 0);
+  const applySeatingResponse = (data) => patchData({
+    seating: data.seating,
+    presidentialSeating: data.presidentialSeating,
+    seatingSettings: data.seatingSettings,
+    presidentialSettings: data.presidentialSettings,
+    guests: data.guests,
+  });
 
   const saveSeatingSettings = async () => {
     const tc = parseInt(document.getElementById('tableCount')?.value);
@@ -43,8 +52,9 @@ export default function Seating() {
   const maxPer = seatingSettings.maxPerTable || 10;
   const presTableCount = presidentialSettings.tableCount || 0;
   const maxPres = presidentialSettings.maxPerTable || 10;
-  const seatedCount = guests.filter(g => g.status === 'Seated').length;
-  const notSeatedCount = guests.filter(g => g.status === 'Not Seated').length;
+  const paxForStatus = (status) => guests.filter(g => g.status === status).reduce((total, guest) => total + Number(guest.pax || 1), 0);
+  const seatedCount = paxForStatus('Seated');
+  const notSeatedCount = paxForStatus('Not Seated');
   const tablesUsed = Object.keys(seating).filter(k => seating[k]?.length > 0).length;
   const presUsed = Object.keys(presidentialSeating).filter(k => presidentialSeating[k]?.length > 0).length;
   const allTables = totalTables + presTableCount;
@@ -54,9 +64,8 @@ export default function Seating() {
   const resetSeating = async () => {
     const result = await Swal.fire({ icon: 'warning', title: 'Reset Seating Config?', text: 'This will clear all seating assignments.', showCancelButton: true, confirmButtonColor: '#226b45' });
     if (!result.isConfirmed) return;
-    const settings = { tableCount: 0, maxPerTable: 10, initialized: false };
-    await Promise.all([api.updateSeatingSettings(settings), api.updateSeating({}), api.updatePresidentialSettings({ tableCount: 0, maxPerTable: 10 }), api.updatePresidentialSeating({})]);
-    patchData({ seatingSettings: settings, seating: {}, presidentialSettings: { tableCount: 0, maxPerTable: 10 }, presidentialSeating: {} });
+    const res = await api.resetSeatingPlan();
+    applySeatingResponse(res.data);
   };
 
   const addTable = async (type) => {
@@ -79,66 +88,31 @@ export default function Seating() {
   const deleteTable = async (type, tableNum) => {
     const result = await Swal.fire({ icon: 'warning', title: 'Delete Table?', text: 'Guests will be returned to Not Seated.', showCancelButton: true, confirmButtonColor: '#e74c3c' });
     if (!result.isConfirmed) return;
-    const isReg = type === 'regular';
-    const src = isReg ? seating : presidentialSeating;
-    const ss = isReg ? seatingSettings : presidentialSettings;
-    const unseatedGuests = src[tableNum] || [];
-    const newSeating = {};
-    let idx = 1;
-    for (let i = 1; i <= ss.tableCount; i++) {
-      if (i === tableNum) continue;
-      newSeating[idx] = src[i] || [];
-      idx++;
+    const res = await api.deleteSeatingTable(type, tableNum);
+    applySeatingResponse(res.data);
+  };
+
+  const addToTable = async (type, tableNum, guest) => {
+    try {
+      const res = await api.assignSeat({ type, tableNumber: tableNum, guestId: guest._id });
+      applySeatingResponse(res.data);
+      setAcSearch('');
+      setTableModal({ type, num: tableNum });
+      Swal.fire({ icon: 'success', title: 'Added to Table', text: `${guest.name} has been seated.`, timer: 1200, showConfirmButton: false });
+    } catch (err) {
+      Swal.fire({ icon: 'warning', title: 'Unable to Seat Guest', text: err.response?.data?.message || 'Please try again.', confirmButtonColor: '#226b45' });
     }
-    const newSs = { ...ss, tableCount: ss.tableCount - 1 };
-    const guestUpdates = unseatedGuests.map(name => { const g = guests.find(x => x.name === name); return g ? api.updateGuest(g._id, { status: 'Not Seated', tableNumber: null }) : Promise.resolve(); });
-    const apiCalls = [
-      ...guestUpdates,
-      isReg ? api.updateSeating(newSeating) : api.updatePresidentialSeating(newSeating),
-      isReg ? api.updateSeatingSettings(newSs) : api.updatePresidentialSettings(newSs),
-    ];
-    await Promise.all(apiCalls);
-    const updatedGuests = guests.map(g => unseatedGuests.includes(g.name) ? { ...g, status: 'Not Seated', tableNumber: null } : g);
-    patchData(isReg ? { seating: newSeating, seatingSettings: newSs, guests: updatedGuests } : { presidentialSeating: newSeating, presidentialSettings: newSs, guests: updatedGuests });
   };
 
-  const addToTable = async (type, tableNum, guestName, guestId) => {
-    const isReg = type === 'regular';
-    const src = isReg ? { ...seating } : { ...presidentialSeating };
-    const ss = isReg ? seatingSettings : presidentialSettings;
-    const tGuests = src[tableNum] || [];
-    if (tGuests.length >= ss.maxPerTable) return Swal.fire({ icon: 'warning', title: 'Table Full', confirmButtonColor: '#226b45' });
-    if (tGuests.includes(guestName)) return;
-    tGuests.push(guestName);
-    src[tableNum] = tGuests;
-    const tableLabel = isReg ? tableNum : `P${tableNum}`;
-    await Promise.all([
-      isReg ? api.updateSeating(src) : api.updatePresidentialSeating(src),
-      api.updateGuest(guestId, { status: 'Seated', tableNumber: tableLabel }),
-    ]);
-    const updatedGuests = guests.map(g => g._id === guestId ? { ...g, status: 'Seated', tableNumber: tableLabel } : g);
-    patchData(isReg ? { seating: src, guests: updatedGuests } : { presidentialSeating: src, guests: updatedGuests });
-    setAcSearch('');
-    setTableModal({ type, num: tableNum });
-    Swal.fire({ icon: 'success', title: `Added to Table`, text: `${guestName} has been seated.`, timer: 1200, showConfirmButton: false });
-  };
-
-  const removeFromTable = async (type, tableNum, guestName) => {
-    const isReg = type === 'regular';
-    const src = isReg ? { ...seating } : { ...presidentialSeating };
-    src[tableNum] = (src[tableNum] || []).filter(n => n !== guestName);
-    const g = guests.find(x => x.name === guestName);
-    await Promise.all([
-      isReg ? api.updateSeating(src) : api.updatePresidentialSeating(src),
-      g ? api.updateGuest(g._id, { status: 'Not Seated', tableNumber: null }) : Promise.resolve(),
-    ]);
-    const updatedGuests = guests.map(x => x.name === guestName ? { ...x, status: 'Not Seated', tableNumber: null } : x);
-    patchData(isReg ? { seating: src, guests: updatedGuests } : { presidentialSeating: src, guests: updatedGuests });
+  const removeFromTable = async (guest) => {
+    const res = await api.removeSeat({ guestId: guest._id });
+    applySeatingResponse(res.data);
   };
 
   const availableGuests = tableModal ? guests.filter(g => g.status !== 'Seated' && (!acSearch || g.name.toLowerCase().includes(acSearch.toLowerCase()))).slice(0, 10) : [];
-  const currentTableGuests = tableModal ? (tableModal.type === 'regular' ? seating[tableModal.num] : presidentialSeating[tableModal.num]) || [] : [];
+  const currentTableGuests = tableModal ? guestsFor((tableModal.type === 'regular' ? seating[tableModal.num] : presidentialSeating[tableModal.num]) || []) : [];
   const currentMax = tableModal ? (tableModal.type === 'regular' ? maxPer : maxPres) : 0;
+  const currentPax = occupiedPax(currentTableGuests);
 
   return (
     <div>
@@ -162,68 +136,76 @@ export default function Seating() {
       <div className="seating-section-title"><i className="fa fa-crown" /> Presidential Tables <span className="section-badge badge badge-pres">{presTableCount}</span></div>
       <div className="table-cards-grid">
         {Array.from({ length: presTableCount }, (_, i) => i + 1).map(tNum => {
-          const tGuests = presidentialSeating[tNum] || [];
-          const full = tGuests.length >= maxPres;
+          const tGuests = guestsFor(presidentialSeating[tNum] || []);
+          const tablePax = occupiedPax(tGuests);
+          const full = tablePax >= maxPres;
           return (
             <div key={tNum} className={`table-card table-presidential${full ? ' table-full' : ''}`}>
               <div className="table-card-header">
-                <span className="table-num" onClick={() => setTableModal({ type: 'presidential', num: tNum })} style={{ cursor: 'pointer', flex: 1 }}>Pres. {tNum}</span>
-                <span className={`table-count${full ? ' full' : ''}`}>{tGuests.length}/{maxPres}</span>
-                <button className="btn-icon-sm danger table-del-btn" onClick={() => deleteTable('presidential', tNum)}><i className="fa fa-trash" /></button>
+                <button type="button" className="table-num" onClick={() => setTableModal({ type: 'presidential', num: tNum })}>Pres. {tNum}</button>
+                <span className={`table-count${full ? ' full' : ''}`}>{tablePax}/{maxPres} pax</span>
+                <button type="button" aria-label={`Delete Presidential Table ${tNum}`} className="btn-icon-sm danger table-del-btn" onClick={() => deleteTable('presidential', tNum)}><i className="fa fa-trash" /></button>
               </div>
-              <ul className="table-guest-list" onClick={() => setTableModal({ type: 'presidential', num: tNum })} style={{ cursor: 'pointer', minHeight: 28 }}>
-                {tGuests.length ? tGuests.map(g => <li key={g}><i className="fa fa-circle-dot" /> {g}</li>) : <li className="empty-small">Click to add guests</li>}
-              </ul>
+              <button type="button" className="table-guest-list-button" onClick={() => setTableModal({ type: 'presidential', num: tNum })}>
+              <span className="table-guest-list">
+                {tGuests.length ? tGuests.slice(0, 4).map(g => <span key={g._id}><i className="fa fa-circle-dot" /> {g.name}</span>) : <span className="empty-small">Click to add guests</span>}
+                {tGuests.length > 4 && <span className="table-more">+{tGuests.length - 4} more</span>}
+              </span>
+              </button>
             </div>
           );
         })}
-        <div className="table-add-card" onClick={() => addTable('presidential')} style={{ borderColor: 'rgba(139,92,246,0.4)' }}>
+        <button type="button" className="table-add-card" onClick={() => addTable('presidential')} style={{ borderColor: 'rgba(139,92,246,0.4)' }}>
           <div className="table-add-inner" style={{ color: '#8b5cf6' }}><i className="fa fa-plus-circle" /><span>Add Presidential</span></div>
-        </div>
+        </button>
       </div>
 
       <div className="seating-section-title" style={{ marginTop: '1.8rem' }}><i className="fa fa-chair" /> Regular Tables <span className="section-badge badge badge-cat">{totalTables}</span></div>
       <div className="table-cards-grid">
         {Array.from({ length: totalTables }, (_, i) => i + 1).map(tNum => {
-          const tGuests = seating[tNum] || [];
-          const full = tGuests.length >= maxPer;
+          const tGuests = guestsFor(seating[tNum] || []);
+          const tablePax = occupiedPax(tGuests);
+          const full = tablePax >= maxPer;
           return (
             <div key={tNum} className={`table-card${full ? ' table-full' : ''}`}>
               <div className="table-card-header">
-                <span className="table-num" onClick={() => setTableModal({ type: 'regular', num: tNum })} style={{ cursor: 'pointer', flex: 1 }}>Table {tNum}</span>
-                <span className={`table-count${full ? ' full' : ''}`}>{tGuests.length}/{maxPer}</span>
-                <button className="btn-icon-sm danger table-del-btn" onClick={() => deleteTable('regular', tNum)}><i className="fa fa-trash" /></button>
+                <button type="button" className="table-num" onClick={() => setTableModal({ type: 'regular', num: tNum })}>Table {tNum}</button>
+                <span className={`table-count${full ? ' full' : ''}`}>{tablePax}/{maxPer} pax</span>
+                <button type="button" aria-label={`Delete Table ${tNum}`} className="btn-icon-sm danger table-del-btn" onClick={() => deleteTable('regular', tNum)}><i className="fa fa-trash" /></button>
               </div>
-              <ul className="table-guest-list" onClick={() => setTableModal({ type: 'regular', num: tNum })} style={{ cursor: 'pointer', minHeight: 28 }}>
-                {tGuests.length ? tGuests.map(g => <li key={g}><i className="fa fa-circle-dot" /> {g}</li>) : <li className="empty-small">Click to add guests</li>}
-              </ul>
+              <button type="button" className="table-guest-list-button" onClick={() => setTableModal({ type: 'regular', num: tNum })}>
+              <span className="table-guest-list">
+                {tGuests.length ? tGuests.slice(0, 4).map(g => <span key={g._id}><i className="fa fa-circle-dot" /> {g.name}</span>) : <span className="empty-small">Click to add guests</span>}
+                {tGuests.length > 4 && <span className="table-more">+{tGuests.length - 4} more</span>}
+              </span>
+              </button>
             </div>
           );
         })}
-        <div className="table-add-card" onClick={() => addTable('regular')}>
+        <button type="button" className="table-add-card" onClick={() => addTable('regular')}>
           <div className="table-add-inner"><i className="fa fa-plus-circle" /><span>Add Table</span></div>
-        </div>
+        </button>
       </div>
 
       {tableModal && (
         <Modal title={`${tableModal.type === 'regular' ? 'Table' : 'Presidential Table'} ${tableModal.num} — Guests`} onClose={() => { setTableModal(null); setAcSearch(''); }}>
-          <p className="modal-meta">Max: <strong>{currentMax}</strong> &nbsp;|&nbsp; Current: <strong>{currentTableGuests.length}</strong></p>
+          <p className="modal-meta">Capacity: <strong>{currentPax}/{currentMax} pax</strong> &nbsp;|&nbsp; Entries: <strong>{currentTableGuests.length}</strong></p>
           <div className="form-group" style={{ position: 'relative' }}>
             <label>Add Guest from List</label>
             <input placeholder="Type guest name..." value={acSearch} onChange={e => setAcSearch(e.target.value)} autoComplete="off" />
             {acSearch && availableGuests.length > 0 && (
               <div className="autocomplete-dropdown">
                 {availableGuests.map(g => (
-                  <div key={g._id} className="ac-item" onClick={() => addToTable(tableModal.type, tableModal.num, g.name, g._id)}>
-                    {g.name} <span className="ac-meta">{g.category}</span>
-                  </div>
+                  <button type="button" key={g._id} className="ac-item" onClick={() => addToTable(tableModal.type, tableModal.num, g)}>
+                    {g.name} <span className="ac-meta">{g.category} · {g.pax || 1} pax</span>
+                  </button>
                 ))}
               </div>
             )}
           </div>
           <ul className="seating-guest-ul">
-            {currentTableGuests.map(gName => (
-              <li key={gName}><span>{gName}</span><button className="btn-del-inline" onClick={() => removeFromTable(tableModal.type, tableModal.num, gName)}><i className="fa fa-times" /></button></li>
+            {currentTableGuests.map(guest => (
+              <li key={guest._id}><span>{guest.name} <small>({guest.pax || 1} pax)</small></span><button type="button" aria-label={`Remove ${guest.name} from table`} className="btn-del-inline" onClick={() => removeFromTable(guest)}><i className="fa fa-times" /></button></li>
             ))}
           </ul>
           <div className="modal-footer"><button className="btn-outline" onClick={() => { setTableModal(null); setAcSearch(''); }}>Close</button></div>

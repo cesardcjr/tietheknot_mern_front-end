@@ -67,9 +67,12 @@ export default function Expenses() {
 
   const saveExpense = async () => {
     if (!form.supplierName.trim()) return Swal.fire({ icon: 'warning', title: 'Supplier name required', confirmButtonColor: '#226b45' });
-    const cost = parseFloat(form.cost) || 0, down = parseFloat(form.downpayment) || 0;
+    const cost = parseFloat(form.cost) || 0;
+    let down = parseFloat(form.downpayment) || 0;
+    if (cost < 0 || down < 0) return Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Amounts cannot be negative.', confirmButtonColor: '#226b45' });
     if (down > cost) return Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Downpayment cannot exceed total cost.', confirmButtonColor: '#226b45' });
     let paymentStatus = form.paymentStatus;
+    if (paymentStatus === 'Paid') down = cost;
     if (down > 0 && paymentStatus === 'Not Paid') paymentStatus = 'Incomplete';
     const data = { ...form, cost, downpayment: down, paymentStatus };
     setSaving(true);
@@ -134,7 +137,7 @@ export default function Expenses() {
       </div>
 
       <div className="table-wrap">
-        <table className="data-table expense-table">
+        <table className="data-table expense-table responsive-table">
           <thead><tr><th>Supplier</th><th style={{ textAlign: 'center' }}>Type</th><th>Total Cost</th><th>Progress</th><th>Balance</th><th>Actions</th></tr></thead>
           <tbody>
             {filtered.length ? filtered.map(e => {
@@ -144,12 +147,12 @@ export default function Expenses() {
               const barColor = e.paymentStatus === 'Paid' ? '#4caf50' : e.paymentStatus === 'Incomplete' ? '#ff9800' : '#f44336';
               return (
                 <tr key={e._id} className={rowClass}>
-                  <td><strong>{e.supplierName}</strong></td>
-                  <td style={{ textAlign: 'center' }}><span className="badge badge-cat">{e.expenseType}</span></td>
-                  <td>₱{fmt(e.cost)}</td>
-                  <td><div style={{ width: '100%', height: 24, background: '#e0e0e0', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: `${pct}%`, background: barColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'white', fontWeight: 'bold' }}>{Math.round(pct)}%</div></div></td>
-                  <td><strong>{e.paymentStatus === 'Paid' ? '—' : `₱${fmt(bal)}`}</strong></td>
-                  <td>
+                  <td data-label="Supplier"><strong>{e.supplierName}</strong></td>
+                  <td data-label="Type" style={{ textAlign: 'center' }}><span className="badge badge-cat">{e.expenseType}</span></td>
+                  <td data-label="Total Cost">₱{fmt(e.cost)}</td>
+                  <td data-label="Progress"><div className="payment-progress"><div style={{ width: `${pct}%`, background: barColor }}>{Math.round(pct)}%</div></div></td>
+                  <td data-label="Balance"><strong>{e.paymentStatus === 'Paid' ? '—' : `₱${fmt(bal)}`}</strong></td>
+                  <td data-label="Actions">
                     <button className="btn-icon-sm" onClick={() => openEdit(e)}><i className="fa fa-edit" /></button>
                     <button className="btn-icon-sm danger" onClick={() => deleteExpense(e)}><i className="fa fa-trash" /></button>
                   </td>
@@ -173,7 +176,7 @@ export default function Expenses() {
             <div className="form-group"><label>Total Cost (₱) *</label><input type="number" min="0" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} /></div>
             <div className="form-group"><label>Contact Person</label><input value={form.contactPerson} onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value }))} /></div>
             <div className="form-group"><label>Contact Number</label><input value={form.contactNum} onChange={e => setForm(f => ({ ...f, contactNum: e.target.value }))} /></div>
-            <div className="form-group"><label>Payment Status</label><select value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value, downpayment: e.target.value === 'Paid' ? '' : f.downpayment }))}>{['Paid','Incomplete','Not Paid'].map(s => <option key={s}>{s}</option>)}</select></div>
+            <div className="form-group"><label>Payment Status</label><select value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value, downpayment: e.target.value === 'Paid' ? f.cost : f.downpayment }))}>{['Paid','Incomplete','Not Paid'].map(s => <option key={s}>{s}</option>)}</select></div>
             <div className="form-group"><label>Downpayment (₱)</label><input type="number" min="0" value={form.downpayment} disabled={form.paymentStatus === 'Paid'} onChange={e => setForm(f => ({ ...f, downpayment: e.target.value }))} /></div>
             <div className="form-group"><label>Balance (₱)</label><input type="text" readOnly className="input-readonly" value={b === null ? '⚠ Downpayment exceeds cost' : b !== '' ? fmt(b) : ''} placeholder="Auto-computed" /></div>
             {b === null && <div className="balance-error" style={{ gridColumn: '1/-1' }}><i className="fa fa-triangle-exclamation" /> Downpayment cannot exceed total cost.</div>}

@@ -29,14 +29,13 @@ export default function Guests() {
   });
   const [form, setForm] = useState({
     name: "",
+    pax: 1,
     category: "Family",
     confirmed: false,
     remarks: "",
     listedBy: "",
   });
   const [saving, setSaving] = useState(false);
-  const [showListedByInput, setShowListedByInput] = useState(false);
-  const [listByInputValue, setListByInputValue] = useState("");
   const [showNominateModal, setShowNominateModal] = useState(false);
   const [nominateInput, setNominateInput] = useState("");
 
@@ -49,12 +48,14 @@ export default function Guests() {
 
   const { guestSettings = {}, guests = [], nominatedGuests = [] } = eventData;
   const expected = guestSettings.expectedGuests || 0;
+  const totalPax = guests.reduce((total, guest) => total + Number(guest.pax || 1), 0);
   const pct =
-    expected > 0 ? Math.min(100, (guests.length / expected) * 100) : 0;
-  const confirmedCount = guests.filter((g) => g.confirmed).length;
-  const seatedCount = guests.filter((g) => g.status === "Seated").length;
-  const unseatedCount = guests.filter((g) => g.status === "Not Seated").length;
-  const unconfirmedCount = guests.filter((g) => !g.confirmed).length;
+    expected > 0 ? Math.min(100, (totalPax / expected) * 100) : 0;
+  const paxFor = (predicate) => guests.filter(predicate).reduce((total, guest) => total + Number(guest.pax || 1), 0);
+  const confirmedCount = paxFor((g) => g.confirmed);
+  const seatedCount = paxFor((g) => g.status === "Seated");
+  const unseatedCount = paxFor((g) => g.status === "Not Seated");
+  const unconfirmedCount = paxFor((g) => !g.confirmed);
   const tableNums = [
     ...new Set(guests.map((g) => g.tableNumber).filter(Boolean)),
   ].sort((a, b) =>
@@ -126,7 +127,7 @@ export default function Guests() {
     );
 
   // ── Filter & Paginate ──────────────────────────────────────
-  const listedByOptions = nominatedGuests.sort();
+  const listedByOptions = [...nominatedGuests].sort((a, b) => a.localeCompare(b));
 
   let filtered = [...guests];
   if (filter.search)
@@ -160,6 +161,7 @@ export default function Guests() {
   const openAdd = () => {
     setForm({
       name: "",
+      pax: 1,
       category: "Family",
       confirmed: false,
       remarks: "",
@@ -170,6 +172,7 @@ export default function Guests() {
   const openEdit = (g) => {
     setForm({
       name: g.name,
+      pax: g.pax || 1,
       category: g.category,
       confirmed: g.confirmed,
       remarks: g.remarks || "",
@@ -233,30 +236,12 @@ export default function Guests() {
       confirmButtonColor: "#e74c3c",
     });
     if (!result.isConfirmed) return;
-    // Remove from seating
-    const { seating = {}, presidentialSeating = {} } = eventData;
-    const newSeating = Object.fromEntries(
-      Object.entries(seating).map(([k, v]) => [
-        k,
-        (v || []).filter((n) => n !== g.name),
-      ]),
-    );
-    const newPresSeating = Object.fromEntries(
-      Object.entries(presidentialSeating).map(([k, v]) => [
-        k,
-        (v || []).filter((n) => n !== g.name),
-      ]),
-    );
-    await Promise.all([
-      api.deleteGuest(g._id),
-      api.updateSeating(newSeating),
-      api.updatePresidentialSeating(newPresSeating),
-    ]);
+    const res = await api.deleteGuest(g._id);
     setEventData((prev) => ({
       ...prev,
-      guests: prev.guests.filter((x) => x._id !== g._id),
-      seating: newSeating,
-      presidentialSeating: newPresSeating,
+      guests: res.data.guests,
+      seating: res.data.seating,
+      presidentialSeating: res.data.presidentialSeating,
     }));
   };
 
@@ -275,30 +260,6 @@ export default function Guests() {
       timer: 1100,
       showConfirmButton: false,
     });
-  };
-
-  const addNewListedBy = async () => {
-    const result = await Swal.fire({
-      title: "Add New Listed By",
-      input: "text",
-      inputAttributes: {
-        placeholder: "Enter person who listed guests",
-      },
-      showCancelButton: true,
-      confirmButtonColor: "#226b45",
-      confirmButtonText: "Add",
-      preConfirm: (value) => {
-        if (!value || !value.trim()) {
-          Swal.showValidationMessage("Please enter a name");
-          return false;
-        }
-        return value.trim();
-      },
-    });
-    if (result.isConfirmed) {
-      setForm((f) => ({ ...f, listedBy: result.value }));
-      setShowListedByInput(false);
-    }
   };
 
   const submitNomination = async () => {
@@ -321,7 +282,8 @@ export default function Guests() {
       });
     }
 
-    const updatedNominated = [...nominatedGuests, nominateInput.trim()].sort();
+    const nominatedName = nominateInput.trim();
+    const updatedNominated = [...nominatedGuests, nominatedName].sort((a, b) => a.localeCompare(b));
     patchData("nominatedGuests", updatedNominated);
     setNominateInput("");
 
@@ -342,7 +304,7 @@ export default function Guests() {
     await Swal.fire({
       icon: "success",
       title: "Nominated!",
-      text: `"${nominateInput.trim()}" has been added to the list.`,
+      text: `"${nominatedName}" has been added to the list.`,
       timer: 1200,
       showConfirmButton: false,
     });
@@ -380,8 +342,8 @@ export default function Guests() {
           </div>
           <div className="stats-numbers-col">
             <div className="stat-box">
-              <div className="stat-num">{guests.length}</div>
-              <div className="stat-label">Total Guests</div>
+              <div className="stat-num">{totalPax}</div>
+              <div className="stat-label">Total Pax · {guests.length} entries</div>
             </div>
             <div className="stat-box" style={{ position: "relative" }}>
               <div className="stat-num">{expected}</div>
@@ -535,10 +497,11 @@ export default function Guests() {
       </div>
 
       <div className="table-wrap">
-        <table className="data-table">
+        <table className="data-table responsive-table">
           <thead>
             <tr>
               <th>Name</th>
+              <th>Pax</th>
               <th>Category</th>
               <th>Status</th>
               <th>Table</th>
@@ -550,32 +513,33 @@ export default function Guests() {
             {paged.length ? (
               paged.map((g) => (
                 <tr key={g._id}>
-                  <td>
+                  <td data-label="Pax">{g.pax || 1}</td>
+                  <td data-label="Category">
                     <strong>{g.name}</strong>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span
                       className={`badge ${g.category === "Principal" ? "badge-principal" : g.category === "Secondary" ? "badge-secondary" : "badge-cat"}`}
                     >
                       {g.category}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Name">
                     <span
                       className={`badge ${g.status === "Seated" ? "badge-green" : "badge-gray"}`}
                     >
                       {g.status}
                     </span>
                   </td>
-                  <td>{g.tableNumber || "—"}</td>
-                  <td>
+                  <td data-label="Table">{g.tableNumber || "—"}</td>
+                  <td data-label="Confirmed">
                     {g.confirmed ? (
                       <i className="fa fa-check-circle text-green" />
                     ) : (
                       <i className="fa fa-circle text-muted" />
                     )}
                   </td>
-                  <td>
+                  <td data-label="Actions">
                     <button className="btn-icon-sm" onClick={() => openEdit(g)}>
                       <i className="fa fa-edit" />
                     </button>
@@ -590,7 +554,7 @@ export default function Guests() {
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="empty-row">
+                <td colSpan="7" className="empty-row">
                   No guests found.
                 </td>
               </tr>
@@ -657,6 +621,18 @@ export default function Guests() {
                   setForm((f) => ({ ...f, name: e.target.value }))
                 }
                 placeholder="Full name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Number of Guests / Pax *</label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={form.pax}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, pax: Math.max(1, Number(e.target.value) || 1) }))
+                }
               />
             </div>
             <div className="form-group full">

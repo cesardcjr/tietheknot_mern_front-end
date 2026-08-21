@@ -19,15 +19,18 @@ export function AppProvider({ children }) {
   });
   const [eventData, setEventData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [dataError, setDataError] = useState("");
 
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
       setLoading(true);
+      setDataError("");
       const res = await api.getAllData();
       setEventData(res.data);
     } catch (err) {
       console.error("Failed to fetch data", err);
+      setDataError(err.response?.data?.message || "Unable to load your event data.");
     } finally {
       setLoading(false);
     }
@@ -56,6 +59,7 @@ export function AppProvider({ children }) {
     localStorage.removeItem("user");
     setUser(null);
     setEventData(null);
+    setDataError("");
   };
 
   // Helpers to optimistically update state + call API
@@ -69,6 +73,7 @@ export function AppProvider({ children }) {
         user,
         eventData,
         loading,
+        dataError,
         loginUser,
         registerUser,
         logoutUser,

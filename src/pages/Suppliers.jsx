@@ -26,6 +26,7 @@ export default function Suppliers() {
 
   const saveSupplier = async () => {
     if (!form.supplierName.trim()) return Swal.fire({ icon: 'warning', title: 'Supplier name required', confirmButtonColor: '#226b45' });
+    if (form.links && !/^https?:\/\//i.test(form.links)) return Swal.fire({ icon: 'warning', title: 'Invalid Link', text: 'Supplier links must start with http:// or https://.', confirmButtonColor: '#226b45' });
     const data = { ...form, quotedPrice: parseFloat(form.quotedPrice) || 0 };
     setSaving(true);
     try {

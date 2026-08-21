@@ -22,6 +22,8 @@ export default function Program() {
 
   const saveItem = async () => {
     if (!form.title.trim()) return Swal.fire({ icon: 'warning', title: 'Title required', confirmButtonColor: '#226b45' });
+    if (!form._start || !form._end) return Swal.fire({ icon: 'warning', title: 'Start and end times required', confirmButtonColor: '#226b45' });
+    if (form._end <= form._start) return Swal.fire({ icon: 'warning', title: 'Invalid time range', text: 'End time must be later than start time.', confirmButtonColor: '#226b45' });
     const data = { title: form.title, startTime: to12h(form._start), endTime: to12h(form._end), details: form.details, _start: form._start, _end: form._end };
     setSaving(true);
     try {

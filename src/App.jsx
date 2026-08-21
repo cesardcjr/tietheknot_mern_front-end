@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { useApp } from './context/AppContext';
 import LoginPage from './pages/LoginPage';
-import Dashboard from './pages/Dashboard';
-import Guests from './pages/Guests';
-import Seating from './pages/Seating';
-import Expenses from './pages/Expenses';
-import Tasks from './pages/Tasks';
-import Checklist from './pages/Checklist';
-import Program from './pages/Program';
-import Suppliers from './pages/Suppliers';
+import Modal from './components/Modal';
 import Swal from 'sweetalert2';
-import * as XLSX from 'xlsx';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Guests = lazy(() => import('./pages/Guests'));
+const Seating = lazy(() => import('./pages/Seating'));
+const Expenses = lazy(() => import('./pages/Expenses'));
+const Tasks = lazy(() => import('./pages/Tasks'));
+const Checklist = lazy(() => import('./pages/Checklist'));
+const Program = lazy(() => import('./pages/Program'));
+const Suppliers = lazy(() => import('./pages/Suppliers'));
 
 const NAV_ITEMS = [
   { page: 'dashboard', icon: 'fa-home', label: 'Dashboard' },
@@ -37,31 +38,23 @@ const GUIDES = {
 function ReadMeModal({ page, onClose }) {
   const guide = GUIDES[page] || GUIDES['dashboard'];
   return (
-    <div className="modal-overlay" onClick={e => e.target.className === 'modal-overlay' && onClose()}>
-      <div className="modal-box">
-        <div className="modal-header">
-          <h3>📖 {guide.title} — How to Use</h3>
-          <button className="modal-close" onClick={onClose}><i className="fa fa-times" /></button>
-        </div>
-        <div className="modal-body">
-          <p className="readme-intro">Quick guide for the <strong>{guide.title}</strong> section.</p>
-          <div className="readme-steps">
-            {guide.steps.map((s, i) => (
-              <div key={i} className="readme-step">
-                <div className="readme-step-num">{i + 1}</div>
-                <div className="readme-step-body"><span className="readme-bold">{s.bold}</span> — {s.detail}</div>
-              </div>
-            ))}
+    <Modal title={`${guide.title} — How to Use`} onClose={onClose}>
+      <p className="readme-intro">Quick guide for the <strong>{guide.title}</strong> section.</p>
+      <div className="readme-steps">
+        {guide.steps.map((s, i) => (
+          <div key={i} className="readme-step">
+            <div className="readme-step-num">{i + 1}</div>
+            <div className="readme-step-body"><span className="readme-bold">{s.bold}</span> — {s.detail}</div>
           </div>
-          <div className="modal-footer"><button className="btn-primary" onClick={onClose}>Got it</button></div>
-        </div>
+        ))}
       </div>
-    </div>
+      <div className="modal-footer"><button type="button" className="btn-primary" onClick={onClose}>Got it</button></div>
+    </Modal>
   );
 }
 
 export default function App() {
-  const { user, eventData, logoutUser, loading } = useApp();
+  const { user, eventData, logoutUser, loading, dataError, fetchData } = useApp();
   const [page, setPage] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -86,21 +79,39 @@ export default function App() {
     if (r.isConfirmed) logoutUser();
   };
 
-  const exportAllData = () => {
+  const exportAllData = async () => {
     if (!eventData) return;
+    const { default: ExcelJS } = await import('exceljs');
     const { guests = [], expenses = [], tasks = [], checklist = [], program = [], suppliers = [] } = eventData;
-    const wb = XLSX.utils.book_new();
+    const workbook = new ExcelJS.Workbook();
     const date = new Date().toISOString().slice(0, 10);
+    const addSheet = (name, rows) => {
+      if (!rows.length) return;
+      const sheet = workbook.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 1 }] });
+      sheet.columns = Object.keys(rows[0]).map(key => ({ header: key, key, width: Math.min(40, Math.max(12, key.length + 4)) }));
+      sheet.addRows(rows);
+      sheet.getRow(1).eachCell(cell => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF226B45' } };
+      });
+      sheet.autoFilter = { from: 'A1', to: `${sheet.getColumn(sheet.columnCount).letter}1` };
+    };
 
-    if (guests.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(guests.map(g => ({ Name: g.name, Pax: g.pax, Category: g.category, Status: g.status, Table: g.tableNumber || '', Confirmed: g.confirmed ? 'Yes' : 'No', Remarks: g.remarks || '' }))), 'Guests');
-    if (expenses.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(expenses.map(e => ({ Supplier: e.supplierName, Type: e.expenseType, Cost: e.cost, Downpayment: e.downpayment, Balance: (e.cost || 0) - (e.downpayment || 0), Contact: e.contactPerson || '', Number: e.contactNum || '', Payment: e.paymentStatus, Tracker: e.paymentTracker || '' }))), 'Expenses');
-    if (tasks.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tasks.map(t => ({ Title: t.title, Details: t.details || '', DueDate: t.dueDate || '', Status: t.status }))), 'Tasks');
-    if (checklist.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(checklist.map(c => ({ Item: c.title, Details: c.details || '', Done: c.checked ? 'Yes' : 'No' }))), 'Checklist');
-    if (program.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...program].sort((a, b) => (a.startTime || '').localeCompare(b.startTime || '')).map(p => ({ Activity: p.title, Start: p.startTime, End: p.endTime, Details: p.details || '' }))), 'Program');
-    if (suppliers.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(suppliers.map(s => ({ Supplier: s.supplierName, Category: s.categoryType, QuotedPrice: s.quotedPrice, Contact: s.contactPerson || '', Number: s.contactNum || '', Location: s.location || '', Links: s.links || '', Details: s.quoteDetails || '' }))), 'Suppliers');
+    addSheet('Guests', guests.map(g => ({ Name: g.name, Pax: g.pax, Category: g.category, Status: g.status, Table: g.tableNumber || '', Confirmed: g.confirmed ? 'Yes' : 'No', Remarks: g.remarks || '' })));
+    addSheet('Expenses', expenses.map(e => ({ Supplier: e.supplierName, Type: e.expenseType, Cost: e.cost, Downpayment: e.downpayment, Balance: (e.cost || 0) - (e.downpayment || 0), Contact: e.contactPerson || '', Number: e.contactNum || '', Payment: e.paymentStatus, Tracker: e.paymentTracker || '' })));
+    addSheet('Tasks', tasks.map(t => ({ Title: t.title, Details: t.details || '', DueDate: t.dueDate || '', Status: t.status })));
+    addSheet('Checklist', checklist.map(c => ({ Item: c.title, Details: c.details || '', Done: c.checked ? 'Yes' : 'No' })));
+    addSheet('Program', [...program].sort((a, b) => (a._start || '').localeCompare(b._start || '')).map(p => ({ Activity: p.title, Start: p.startTime, End: p.endTime, Details: p.details || '' })));
+    addSheet('Suppliers', suppliers.map(s => ({ Supplier: s.supplierName, Category: s.categoryType, QuotedPrice: s.quotedPrice, Contact: s.contactPerson || '', Number: s.contactNum || '', Location: s.location || '', Links: s.links || '', Details: s.quoteDetails || '' })));
 
-    if (!wb.SheetNames.length) return Swal.fire({ icon: 'info', title: 'No data to export yet.', confirmButtonColor: '#226b45' });
-    XLSX.writeFile(wb, `TieTheKnot_${user.username}_${date}.xlsx`);
+    if (!workbook.worksheets.length) return Swal.fire({ icon: 'info', title: 'No data to export yet.', confirmButtonColor: '#226b45' });
+    const buffer = await workbook.xlsx.writeBuffer();
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `TieTheKnot_${user.username}_${date}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
     Swal.fire({ icon: 'success', title: 'Export Complete', timer: 1600, showConfirmButton: false });
   };
 
@@ -127,9 +138,9 @@ export default function App() {
         <nav className="sidebar-nav">
           <div className="nav-label">Menu</div>
           {NAV_ITEMS.map(({ page: p, icon, label }) => (
-            <a key={p} href="#" className={`nav-item${page === p ? ' active' : ''}`} onClick={e => { e.preventDefault(); navigate(p); }}>
+            <button type="button" key={p} className={`nav-item${page === p ? ' active' : ''}`} onClick={() => navigate(p)}>
               <i className={`fa ${icon}`} /><span>{label}</span>
-            </a>
+            </button>
           ))}
         </nav>
         <div className="sidebar-footer">
@@ -141,13 +152,13 @@ export default function App() {
 
       <main className="main-content">
         <div className="topbar">
-          <button className="sidebar-toggle" onClick={toggleSidebar}><i className="fa fa-bars" /></button>
+          <button type="button" className="sidebar-toggle" aria-label="Toggle navigation" aria-expanded={sidebarOpen || !sidebarCollapsed} onClick={toggleSidebar}><i className="fa fa-bars" /></button>
           <div className="topbar-title">{PAGE_TITLES[page]}</div>
           <div className="topbar-actions">
-            <button className="btn-icon btn-readme" onClick={() => setShowReadMe(true)} title="Read Me / Guide">
+            <button type="button" className="btn-icon btn-readme" onClick={() => setShowReadMe(true)} title="Read Me / Guide" aria-label="Open page guide">
               <i className="fa fa-book-open" /><span className="btn-icon-label"> Read Me</span>
             </button>
-            <button className="btn-icon" title="Export Data" onClick={exportAllData}>
+            <button type="button" className="btn-icon" title="Export Data" onClick={exportAllData} aria-label="Export event data">
               <i className="fa fa-file-arrow-down" /><span className="btn-icon-label"> Export</span>
             </button>
           </div>
@@ -156,7 +167,11 @@ export default function App() {
         <div className="page active">
           {loading && !eventData
             ? <div className="page-loading"><i className="fa fa-spinner fa-spin" /> Loading your data…</div>
-            : <PageComponent onNavigate={navigate} />
+            : dataError && !eventData
+              ? <div className="error-state" role="alert"><i className="fa fa-circle-exclamation" /><h2>We couldn't load your data</h2><p>{dataError}</p><button type="button" className="btn-primary" onClick={fetchData}>Try Again</button></div>
+              : <Suspense fallback={<div className="page-loading"><i className="fa fa-spinner fa-spin" /> Loading section…</div>}>
+                <PageComponent onNavigate={navigate} />
+              </Suspense>
           }
         </div>
       </main>
