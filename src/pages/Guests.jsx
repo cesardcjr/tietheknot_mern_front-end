@@ -22,7 +22,7 @@ export default function Guests() {
   const [filter, setFilter] = useState({
     search: "",
     category: "",
-    confirmed: "",
+    rsvpStatus: "",
     status: "",
     tableNum: "",
     listedBy: "",
@@ -136,8 +136,14 @@ export default function Guests() {
     );
   if (filter.category)
     filtered = filtered.filter((g) => g.category === filter.category);
-  if (filter.confirmed !== "")
-    filtered = filtered.filter((g) => String(g.confirmed) === filter.confirmed);
+  if (filter.rsvpStatus) {
+    filtered = filtered.filter((g) => {
+      const status = g.rsvpStatus === "Pending" && g.confirmed
+        ? "Accepted"
+        : (g.rsvpStatus || (g.confirmed ? "Accepted" : "Pending"));
+      return status === filter.rsvpStatus;
+    });
+  }
   if (filter.status)
     filtered = filtered.filter((g) => g.status === filter.status);
   if (filter.tableNum)
@@ -484,15 +490,16 @@ export default function Guests() {
           ))}
         </select>
         <select
-          value={filter.confirmed}
+          value={filter.rsvpStatus}
           onChange={(e) => {
-            setFilter((f) => ({ ...f, confirmed: e.target.value }));
+            setFilter((f) => ({ ...f, rsvpStatus: e.target.value }));
             setPage(1);
           }}
         >
-          <option value="">All Confirmations</option>
-          <option value="true">Confirmed</option>
-          <option value="false">Not Confirmed</option>
+          <option value="">All RSVP Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Accepted">Accepted</option>
+          <option value="Declined">Declined</option>
         </select>
       </div>
 
@@ -503,9 +510,8 @@ export default function Guests() {
               <th>Name</th>
               <th>Pax</th>
               <th>Category</th>
-              <th>Status</th>
+              <th>RSVP</th>
               <th>Table</th>
-              <th>Confirmed</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -513,48 +519,42 @@ export default function Guests() {
             {paged.length ? (
               paged.map((g) => (
                 <tr key={g._id}>
-                  <td data-label="Pax">{g.pax || 1}</td>
-                  <td data-label="Category">
+                  <td data-label="Name">
                     <strong>{g.name}</strong>
                   </td>
-                  <td data-label="Status">
+                  <td data-label="Pax">{g.pax || 1}</td>
+                  <td data-label="Category">
                     <span
                       className={`badge ${g.category === "Principal" ? "badge-principal" : g.category === "Secondary" ? "badge-secondary" : "badge-cat"}`}
                     >
                       {g.category}
                     </span>
                   </td>
-                  <td data-label="Name">
-                    <span
-                      className={`badge ${g.status === "Seated" ? "badge-green" : "badge-gray"}`}
-                    >
-                      {g.status}
+                  <td data-label="RSVP">
+                    <span className={`badge ${(g.rsvpStatus === "Accepted" || g.confirmed) ? "badge-green" : g.rsvpStatus === "Declined" ? "badge-gray" : "badge-cat"}`}>
+                      {g.rsvpStatus === "Pending" && g.confirmed ? "Accepted" : (g.rsvpStatus || (g.confirmed ? "Accepted" : "Pending"))}
                     </span>
                   </td>
                   <td data-label="Table">{g.tableNumber || "—"}</td>
-                  <td data-label="Confirmed">
-                    {g.confirmed ? (
-                      <i className="fa fa-check-circle text-green" />
-                    ) : (
-                      <i className="fa fa-circle text-muted" />
-                    )}
-                  </td>
                   <td data-label="Actions">
-                    <button className="btn-icon-sm" onClick={() => openEdit(g)}>
-                      <i className="fa fa-edit" />
-                    </button>
-                    <button
-                      className="btn-icon-sm danger"
-                      onClick={() => deleteGuest(g)}
-                    >
-                      <i className="fa fa-trash" />
-                    </button>
+                    <div className="guest-row-actions">
+                      <button className="btn-icon-sm" aria-label={`Edit ${g.name}`} onClick={() => openEdit(g)}>
+                        <i className="fa fa-edit" />
+                      </button>
+                      <button
+                        className="btn-icon-sm danger"
+                        aria-label={`Delete ${g.name}`}
+                        onClick={() => deleteGuest(g)}
+                      >
+                        <i className="fa fa-trash" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="7" className="empty-row">
+                <td colSpan="6" className="empty-row">
                   No guests found.
                 </td>
               </tr>
@@ -583,18 +583,20 @@ export default function Guests() {
           { label: "Principal", list: principalGuests },
           { label: "Secondary", list: secondaryGuests },
         ].map(({ label, list }) => (
-          <div key={label} className="sponsor-block">
+          <div key={label} className={`sponsor-block sponsor-block-${label.toLowerCase()}`}>
             <div className="sponsor-header">
               <h4>
                 {label} Sponsors{" "}
                 <span className="sponsor-count">{list.length}</span>
               </h4>
             </div>
-            <div className="sponsor-grid">
+            <div className="sponsor-list-compact">
               {list.length ? (
-                list.map((g) => (
-                  <div key={g._id} className="sponsor-card">
+                list.map((g, index) => (
+                  <div key={g._id} className="sponsor-person">
+                    <span className="sponsor-order">{String(index + 1).padStart(2, "0")}</span>
                     <span className="sponsor-name">{g.name}</span>
+                    <span className="sponsor-pax">{g.pax || 1} pax</span>
                   </div>
                 ))
               ) : (

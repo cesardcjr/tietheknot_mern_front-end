@@ -59,6 +59,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showReadMe, setShowReadMe] = useState(false);
+  const invitationAppUrl = import.meta.env.VITE_INVITATION_APP_URL || 'http://localhost:5174';
 
   if (!user) return <LoginPage />;
 
@@ -97,7 +98,7 @@ export default function App() {
       sheet.autoFilter = { from: 'A1', to: `${sheet.getColumn(sheet.columnCount).letter}1` };
     };
 
-    addSheet('Guests', guests.map(g => ({ Name: g.name, Pax: g.pax, Category: g.category, Status: g.status, Table: g.tableNumber || '', Confirmed: g.confirmed ? 'Yes' : 'No', Remarks: g.remarks || '' })));
+    addSheet('Guests', guests.map(g => ({ Name: g.name, InvitedPax: g.pax, RSVP: g.rsvpStatus || (g.confirmed ? 'Accepted' : 'Pending'), AttendingPax: g.attendingPax || 0, DeclineReason: g.declineReason || '', Category: g.category, SeatingStatus: g.status, Table: g.tableNumber || '', InvitationStatus: g.invitationStatus || 'Not Created', DietaryNotes: g.dietaryNotes || '', GuestMessage: g.guestMessage || '', Remarks: g.remarks || '' })));
     addSheet('Expenses', expenses.map(e => ({ Supplier: e.supplierName, Type: e.expenseType, Cost: e.cost, Downpayment: e.downpayment, Balance: (e.cost || 0) - (e.downpayment || 0), Contact: e.contactPerson || '', Number: e.contactNum || '', Payment: e.paymentStatus, Tracker: e.paymentTracker || '' })));
     addSheet('Tasks', tasks.map(t => ({ Title: t.title, Details: t.details || '', DueDate: t.dueDate || '', Status: t.status })));
     addSheet('Checklist', checklist.map(c => ({ Item: c.title, Details: c.details || '', Done: c.checked ? 'Yes' : 'No' })));
@@ -144,6 +145,9 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
+          <a className="btn-studio" href={invitationAppUrl} target="_blank" rel="noreferrer">
+            <i className="fa fa-envelope-open-text" /><span>Invitation Studio</span>
+          </a>
           <button className="btn-logout" onClick={handleLogout}>
             <i className="fa fa-sign-out-alt" /><span>Logout</span>
           </button>

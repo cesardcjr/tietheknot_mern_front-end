@@ -252,6 +252,7 @@ img {
 .sidebar.collapsed .sidebar-brand span,
 .sidebar.collapsed .user-info,
 .sidebar.collapsed .nav-item span,
+.sidebar.collapsed .sidebar-footer .btn-studio span,
 .sidebar.collapsed .sidebar-footer .btn-logout span {
   display: none;
 }
@@ -259,7 +260,8 @@ img {
   justify-content: center;
   padding: 0.82rem 0;
 }
-.sidebar.collapsed .sidebar-footer .btn-logout {
+.sidebar.collapsed .sidebar-footer .btn-logout,
+.sidebar.collapsed .sidebar-footer .btn-studio {
   justify-content: center;
   padding: 0.6rem 0;
 }
@@ -377,6 +379,7 @@ img {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
+.btn-studio,
 .btn-logout {
   display: flex;
   align-items: center;
@@ -391,6 +394,15 @@ img {
     color var(--transition);
   white-space: nowrap;
   width: 100%;
+}
+.btn-studio {
+  margin-bottom: 0.25rem;
+  color: rgba(255, 255, 255, 0.76);
+  text-decoration: none;
+}
+.btn-studio:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
 }
 .btn-logout:hover {
   background: rgba(214, 60, 60, 0.2);
@@ -1114,14 +1126,23 @@ img {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.1rem;
+  padding: 0;
+  overflow: hidden;
   box-shadow: var(--shadow);
+}
+.sponsor-block-principal {
+  border-top: 3px solid #c47d0a;
+}
+.sponsor-block-secondary {
+  border-top: 3px solid #2b6cb0;
 }
 .sponsor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0;
+  padding: 0.8rem 0.9rem 0.65rem;
+  border-bottom: 1px solid var(--border);
 }
 .sponsor-header h4 {
   font-size: 0.9rem;
@@ -1995,6 +2016,7 @@ img {
   .sidebar.collapsed .sidebar-brand span,
   .sidebar.collapsed .user-info,
   .sidebar.collapsed .nav-item span,
+  .sidebar.collapsed .sidebar-footer .btn-studio span,
   .sidebar.collapsed .sidebar-footer .btn-logout span {
     display: unset;
   }
@@ -2002,7 +2024,8 @@ img {
     justify-content: flex-start;
     padding: 0.65rem 0.85rem;
   }
-  .sidebar.collapsed .sidebar-footer .btn-logout {
+  .sidebar.collapsed .sidebar-footer .btn-logout,
+  .sidebar.collapsed .sidebar-footer .btn-studio {
     justify-content: flex-start;
     padding: 0.58rem 0.85rem;
   }
@@ -2343,6 +2366,56 @@ img {
 .payment-tracker-wrap {
   display: flex;
   flex-direction: column;
+}
+.sponsor-list-compact {
+  display: grid;
+  gap: 0;
+}
+.sponsor-person {
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.48rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+.sponsor-person:last-child {
+  border-bottom: 0;
+}
+.sponsor-person:hover {
+  background: var(--bg2);
+}
+.sponsor-order {
+  color: var(--text3);
+  font-size: 0.66rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sponsor-person .sponsor-name {
+  display: block;
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sponsor-pax {
+  border-radius: 999px;
+  padding: 0.16rem 0.42rem;
+  color: var(--text2);
+  background: var(--bg2);
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+.sponsor-list-compact > .empty-row {
+  padding: 1rem;
+}
+
+.guest-row-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
 }
 
 /* ── Shared responsive optimization layer ───────────────── */

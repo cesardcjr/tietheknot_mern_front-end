@@ -17,7 +17,8 @@ export default function Seating() {
   const patchData = (updates) => setEventData(prev => ({ ...prev, ...updates }));
   const guestFor = (reference) => guests.find(g => String(g._id) === String(reference) || g.name === reference);
   const guestsFor = (references = []) => references.map(guestFor).filter(Boolean);
-  const occupiedPax = (tableGuests = []) => tableGuests.reduce((total, guest) => total + Number(guest.pax || 1), 0);
+  const guestPax = (guest) => guest.rsvpStatus === 'Accepted' ? Number(guest.attendingPax || guest.pax || 1) : Number(guest.pax || 1);
+  const occupiedPax = (tableGuests = []) => tableGuests.reduce((total, guest) => total + guestPax(guest), 0);
   const applySeatingResponse = (data) => patchData({
     seating: data.seating,
     presidentialSeating: data.presidentialSeating,
@@ -52,7 +53,7 @@ export default function Seating() {
   const maxPer = seatingSettings.maxPerTable || 10;
   const presTableCount = presidentialSettings.tableCount || 0;
   const maxPres = presidentialSettings.maxPerTable || 10;
-  const paxForStatus = (status) => guests.filter(g => g.status === status).reduce((total, guest) => total + Number(guest.pax || 1), 0);
+  const paxForStatus = (status) => guests.filter(g => g.status === status).reduce((total, guest) => total + guestPax(guest), 0);
   const seatedCount = paxForStatus('Seated');
   const notSeatedCount = paxForStatus('Not Seated');
   const tablesUsed = Object.keys(seating).filter(k => seating[k]?.length > 0).length;
@@ -197,7 +198,7 @@ export default function Seating() {
               <div className="autocomplete-dropdown">
                 {availableGuests.map(g => (
                   <button type="button" key={g._id} className="ac-item" onClick={() => addToTable(tableModal.type, tableModal.num, g)}>
-                    {g.name} <span className="ac-meta">{g.category} · {g.pax || 1} pax</span>
+                    {g.name} <span className="ac-meta">{g.category} · {guestPax(g)} pax</span>
                   </button>
                 ))}
               </div>
@@ -205,7 +206,7 @@ export default function Seating() {
           </div>
           <ul className="seating-guest-ul">
             {currentTableGuests.map(guest => (
-              <li key={guest._id}><span>{guest.name} <small>({guest.pax || 1} pax)</small></span><button type="button" aria-label={`Remove ${guest.name} from table`} className="btn-del-inline" onClick={() => removeFromTable(guest)}><i className="fa fa-times" /></button></li>
+              <li key={guest._id}><span>{guest.name} <small>({guestPax(guest)} pax)</small></span><button type="button" aria-label={`Remove ${guest.name} from table`} className="btn-del-inline" onClick={() => removeFromTable(guest)}><i className="fa fa-times" /></button></li>
             ))}
           </ul>
           <div className="modal-footer"><button className="btn-outline" onClick={() => { setTableModal(null); setAcSearch(''); }}>Close</button></div>
