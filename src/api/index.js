@@ -53,6 +53,8 @@ export const removeSeat = (data) => api.post("/data/seating/remove", data);
 export const resetSeatingPlan = () => api.delete("/data/seating/reset");
 export const deleteSeatingTable = (type, tableNumber) =>
   api.delete(`/data/seating/tables/${type}/${tableNumber}`);
+export const updateSeatingFloorPlan = (data) =>
+  api.put("/data/seating/floor-plan", data);
 
 // Expenses
 export const updateExpenseSettings = (data) =>

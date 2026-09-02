@@ -2,7 +2,12 @@ import React, { useEffect, useId, useRef } from 'react';
 
 export default function Modal({ title, onClose, wide, children }) {
   const dialogRef = useRef(null);
+  const onCloseRef = useRef(onClose);
   const titleId = useId();
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const previousFocus = document.activeElement;
@@ -13,7 +18,7 @@ export default function Modal({ title, onClose, wide, children }) {
     (preferredFocus || focusable()[0])?.focus();
 
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
       if (event.key !== 'Tab') return;
       const elements = focusable();
       if (!elements.length) return;
@@ -35,7 +40,7 @@ export default function Modal({ title, onClose, wide, children }) {
       document.body.classList.remove('modal-open');
       previousFocus?.focus?.();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="modal-overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
