@@ -25,6 +25,12 @@ api.interceptors.response.use(
 // Auth
 export const register = (data) => api.post("/auth/register", data);
 export const login = (data) => api.post("/auth/login", data);
+export const resetPassword = (data) => api.post("/auth/forgot-password", data);
+
+// Administrator account management
+export const getUsers = () => api.get("/users");
+export const updateUserStatus = (id, isActive) =>
+  api.patch(`/users/${id}/status`, { isActive });
 
 // Event data
 export const getAllData = () => api.get("/data");

@@ -2333,7 +2333,7 @@ img {
 }
 .login-tab {
   flex: 1;
-  padding: 0.58rem 1rem;
+  padding: 0.58rem 0.5rem;
   font-size: 0.86rem;
   font-weight: 600;
   color: var(--text2);
@@ -2367,6 +2367,36 @@ img {
   display: flex;
   flex-direction: column;
 }
+.login-text-button { display: block; margin: 0.65rem auto 0; padding: 0; border: 0; background: transparent; color: var(--accent); cursor: pointer; font: inherit; font-size: 0.85rem; font-weight: 650; }
+.login-switch-copy { margin-top: 1rem; color: var(--text2); text-align: center; font-size: 0.85rem; }
+.login-switch-copy .login-text-button { display: inline; margin: 0; }
+.login-reset-intro { margin: -0.25rem 0 1.25rem; color: var(--text2); text-align: center; font-size: 0.88rem; line-height: 1.5; }
+.form-help { display: block; margin-top: 0.4rem; color: var(--text3); font-size: 0.72rem; line-height: 1.35; }
+
+/* ── Administrator account review ─────────────────────── */
+.admin-users-page { padding-bottom: 1rem; }
+.page-heading-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.page-heading-row h1 { margin: 0; color: var(--text); font-size: 1.35rem; }
+.page-heading-row p { margin: 0.3rem 0 0; color: var(--text2); font-size: 0.85rem; }
+.admin-users-card { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+.admin-users-summary { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); color: var(--text2); font-size: 0.82rem; }
+.admin-users-summary strong { color: var(--green-main); font-size: 1rem; }
+.admin-users-summary span { color: #a06200; font-weight: 650; }
+.admin-users-table-wrap { overflow-x: auto; }
+.admin-users-table { width: 100%; min-width: 680px; border-collapse: collapse; }
+.admin-users-table th { padding: 0.78rem 1rem; background: var(--bg2); color: var(--text2); font-size: 0.68rem; font-weight: 800; letter-spacing: 0.05em; text-align: left; text-transform: uppercase; }
+.admin-users-table td { padding: 0.85rem 1rem; border-top: 1px solid var(--border); color: var(--text2); font-size: 0.82rem; vertical-align: middle; }
+.admin-users-table td strong { display: block; color: var(--text); }
+.admin-badge { display: inline-block; margin-top: 0.28rem; padding: 0.12rem 0.4rem; border-radius: 999px; background: var(--green-light); color: var(--green-main); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; }
+.status-toggle { min-width: 108px; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.36rem 0.58rem; border: 1px solid var(--border); border-radius: 999px; background: var(--bg2); color: var(--text2); cursor: pointer; font-size: 0.72rem; font-weight: 750; transition: all var(--transition); }
+.status-toggle:hover:not(:disabled) { border-color: var(--green-main); }
+.status-toggle:disabled { cursor: not-allowed; opacity: 0.64; }
+.status-toggle-knob { width: 15px; height: 15px; border-radius: 50%; background: #919c95; transition: background var(--transition); }
+.status-toggle.active { border-color: rgba(34, 107, 69, 0.3); background: var(--green-light); color: var(--green-main); }
+.status-toggle.active .status-toggle-knob { background: var(--green-main); }
+.status-toggle.inactive { color: #8d3939; }
+.status-toggle.inactive .status-toggle-knob { background: #bc5050; }
+.admin-users-empty { padding: 2rem !important; color: var(--text3) !important; text-align: center; }
 
 /* ── Visual seating plan builder ───────────────────────── */
 .floor-plan-page { --floor-ink: #24352d; --floor-green: #226b45; }
@@ -2827,6 +2857,19 @@ textarea:focus-visible,
   .supplier-card {
     min-height: 250px;
   }
+
+  .page-heading-row { align-items: flex-start; flex-direction: column; }
+  .admin-users-table { min-width: 0; }
+  .admin-users-table, .admin-users-table tbody, .admin-users-table tr, .admin-users-table td { display: block; width: 100%; }
+  .admin-users-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .admin-users-table tbody { display: grid; gap: 0.7rem; padding: 0.7rem; }
+  .admin-users-table tr { overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .admin-users-table td { display: grid; grid-template-columns: minmax(105px, 0.44fr) minmax(0, 1fr); gap: 0.65rem; align-items: center; padding: 0.65rem 0.75rem; border-top: 0; border-bottom: 1px solid var(--border); text-align: right; }
+  .admin-users-table td:last-child { border-bottom: 0; }
+  .admin-users-table td::before { content: attr(data-label); color: var(--text2); font-size: 0.67rem; font-weight: 800; letter-spacing: .04em; text-align: left; text-transform: uppercase; }
+  .admin-users-table td .admin-badge { justify-self: end; }
+  .admin-users-empty { display: block !important; text-align: center !important; }
+  .admin-users-empty::before { display: none; }
 }
 
 @media (max-width: 479px) {

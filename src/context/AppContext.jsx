@@ -54,6 +54,11 @@ export function AppProvider({ children }) {
     return res.data.user;
   };
 
+  const resetPassword = async (formData) => {
+    const res = await api.resetPassword(formData);
+    return res.data;
+  };
+
   const logoutUser = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -76,6 +81,7 @@ export function AppProvider({ children }) {
         dataError,
         loginUser,
         registerUser,
+        resetPassword,
         logoutUser,
         fetchData,
         patch,

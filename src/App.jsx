@@ -12,6 +12,7 @@ const Tasks = lazy(() => import('./pages/Tasks'));
 const Checklist = lazy(() => import('./pages/Checklist'));
 const Program = lazy(() => import('./pages/Program'));
 const Suppliers = lazy(() => import('./pages/Suppliers'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 
 const NAV_ITEMS = [
   { page: 'dashboard', icon: 'fa-home', label: 'Dashboard' },
@@ -116,9 +117,12 @@ export default function App() {
     Swal.fire({ icon: 'success', title: 'Export Complete', timer: 1600, showConfirmButton: false });
   };
 
-  const PAGE_TITLES = { dashboard: 'Dashboard', guests: 'Guest List', seating: 'Seating Plan', expenses: 'Finance Tracker', tasks: 'To-Do Tasks', checklist: 'Event Checklist', program: 'Program Flow', suppliers: 'Supplier Details' };
+  const pageTitles = { dashboard: 'Dashboard', guests: 'Guest List', seating: 'Seating Plan', expenses: 'Finance Tracker', tasks: 'To-Do Tasks', checklist: 'Event Checklist', program: 'Program Flow', suppliers: 'Supplier Details', users: 'User Accounts' };
 
-  const PageComponent = { dashboard: Dashboard, guests: Guests, seating: Seating, expenses: Expenses, tasks: Tasks, checklist: Checklist, program: Program, suppliers: Suppliers }[page];
+  const pageComponent = { dashboard: Dashboard, guests: Guests, seating: Seating, expenses: Expenses, tasks: Tasks, checklist: Checklist, program: Program, suppliers: Suppliers, users: AdminUsers }[page];
+  const navItems = user.isAdmin
+    ? [...NAV_ITEMS, { page: 'users', icon: 'fa-user-shield', label: 'User Accounts' }]
+    : NAV_ITEMS;
 
   return (
     <div className="app-shell">
@@ -133,12 +137,12 @@ export default function App() {
           <div className="avatar"><i className="fa fa-user" /></div>
           <div className="user-info">
             <span className="user-name">{user.fullName}</span>
-            <span className="user-role">Event Planner</span>
+            <span className="user-role">{user.isAdmin ? 'Administrator' : 'Event Planner'}</span>
           </div>
         </div>
         <nav className="sidebar-nav">
           <div className="nav-label">Menu</div>
-          {NAV_ITEMS.map(({ page: p, icon, label }) => (
+          {navItems.map(({ page: p, icon, label }) => (
             <button type="button" key={p} className={`nav-item${page === p ? ' active' : ''}`} onClick={() => navigate(p)}>
               <i className={`fa ${icon}`} /><span>{label}</span>
             </button>
@@ -157,7 +161,7 @@ export default function App() {
       <main className="main-content">
         <div className="topbar">
           <button type="button" className="sidebar-toggle" aria-label="Toggle navigation" aria-expanded={sidebarOpen || !sidebarCollapsed} onClick={toggleSidebar}><i className="fa fa-bars" /></button>
-          <div className="topbar-title">{PAGE_TITLES[page]}</div>
+          <div className="topbar-title">{pageTitles[page]}</div>
           <div className="topbar-actions">
             <button type="button" className="btn-icon btn-readme" onClick={() => setShowReadMe(true)} title="Read Me / Guide" aria-label="Open page guide">
               <i className="fa fa-book-open" /><span className="btn-icon-label"> Read Me</span>
@@ -174,7 +178,7 @@ export default function App() {
             : dataError && !eventData
               ? <div className="error-state" role="alert"><i className="fa fa-circle-exclamation" /><h2>We couldn't load your data</h2><p>{dataError}</p><button type="button" className="btn-primary" onClick={fetchData}>Try Again</button></div>
               : <Suspense fallback={<div className="page-loading"><i className="fa fa-spinner fa-spin" /> Loading section…</div>}>
-                <PageComponent onNavigate={navigate} />
+                {React.createElement(pageComponent, { onNavigate: navigate })}
               </Suspense>
           }
         </div>
