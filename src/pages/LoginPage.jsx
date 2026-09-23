@@ -168,12 +168,6 @@ export default function LoginPage() {
           >
             Register
           </button>
-          <button
-            className={`login-tab ${mode === "forgot" ? "active" : ""}`}
-            onClick={() => setMode("forgot")}
-          >
-            Reset Password
-          </button>
         </div>
 
         {mode === "login" ? (
@@ -239,7 +233,7 @@ export default function LoginPage() {
                 Register here
               </button>
             </p>
-            <button type="button" className="login-text-button" onClick={() => setMode("forgot")}>Forgot password?</button>
+            <button type="button" className="login-text-button" onClick={() => setMode("forgot")}>Reset Password</button>
           </>
         ) : mode === "register" ? (
           <>
