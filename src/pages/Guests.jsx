@@ -36,6 +36,9 @@ export default function Guests() {
     listedBy: "",
   });
   const [saving, setSaving] = useState(false);
+  const [companions, setCompanions] = useState([]);
+  const companionNames = companions.map((name) => name.trim()).filter(Boolean);
+  const companionRemarks = companionNames.length ? `Companions: ${companionNames.join(", ")}` : "";
   const [showNominateModal, setShowNominateModal] = useState(false);
   const [nominateInput, setNominateInput] = useState("");
 
@@ -165,6 +168,7 @@ export default function Guests() {
 
   // ── Modal Handlers ─────────────────────────────────────────
   const openAdd = () => {
+    setCompanions([]);
     setForm({
       name: "",
       pax: 1,
@@ -188,6 +192,7 @@ export default function Guests() {
   };
 
   const saveGuest = async () => {
+    if (saving) return;
     if (!form.name.trim())
       return Swal.fire({
         icon: "warning",
@@ -208,18 +213,15 @@ export default function Guests() {
       });
     setSaving(true);
     try {
-      console.log("Saving guest with data:", form); // Debug log
       if (modal.mode === "edit") {
         const res = await api.updateGuest(modal.guest._id, form);
-        console.log("Update response:", res.data); // Debug log
         patchData(
           "guests",
           guests.map((g) => (g._id === modal.guest._id ? res.data : g)),
         );
       } else {
-        const res = await api.addGuest({ ...form, status: "Not Seated" });
-        console.log("Add response:", res.data); // Debug log
-        patchData("guests", [...guests, res.data]);
+        const res = await api.addGuest({ ...form, name: form.name.trim(), companions, remarks: companionRemarks });
+        setEventData((prev) => ({ ...prev, guests: [...prev.guests, ...res.data.guests] }));
       }
       setModal(null);
     } catch (err) {
@@ -631,12 +633,28 @@ export default function Guests() {
                 type="number"
                 min="1"
                 max="50"
+                step="1"
                 value={form.pax}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, pax: Math.max(1, Number(e.target.value) || 1) }))
-                }
+                onChange={(e) => {
+                  const pax = Math.min(50, Math.max(1, Math.floor(Number(e.target.value) || 1)));
+                  setForm((f) => ({ ...f, pax }));
+                  setCompanions((names) => Array.from({ length: pax - 1 }, (_, i) => names[i] || ""));
+                }}
               />
             </div>
+            {modal.mode === "add" && form.pax > 1 && (
+              <div className="form-group full">
+                <p>Optional: name companions to list and seat them separately. Unnamed places stay with the main guest.</p>
+                {companions.map((name, index) => (
+                  <div className="form-group" key={index}>
+                    <label htmlFor={`companion-${index}`}>Companion {index + 1}</label>
+                    <input id={`companion-${index}`} value={name} maxLength={120}
+                      placeholder="Companion full name"
+                      onChange={(e) => setCompanions((names) => names.map((value, i) => i === index ? e.target.value : value))} />
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="form-group full">
               <label>Listed by</label>
               <select
@@ -717,7 +735,8 @@ export default function Guests() {
               <label>Remarks</label>
               <textarea
                 rows="2"
-                value={form.remarks}
+                value={modal.mode === "add" ? companionRemarks : form.remarks}
+                readOnly={modal.mode === "add"}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, remarks: e.target.value }))
                 }
