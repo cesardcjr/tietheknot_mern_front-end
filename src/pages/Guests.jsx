@@ -14,6 +14,16 @@ const CATEGORIES = [
   "Others",
 ];
 
+const companionsFor = (guests, main) => {
+  const listed = main.remarks?.startsWith("Companions: ")
+    ? main.remarks.slice("Companions: ".length).split(", ").map((name) => name.toLowerCase())
+    : [];
+  return guests.filter((guest) => guest._id !== main._id && (
+    guest.companionOf === main._id ||
+    (!guest.companionOf && listed.includes(guest.name.toLowerCase()) && guest.remarks === `Companion of ${main.name}`)
+  ));
+};
+
 export default function Guests() {
   const { eventData, setEventData } = useApp();
   const [modal, setModal] = useState(null); // null | {mode: 'add'|'edit', guest?: obj}
@@ -37,7 +47,7 @@ export default function Guests() {
   });
   const [saving, setSaving] = useState(false);
   const [companions, setCompanions] = useState([]);
-  const companionNames = companions.map((name) => name.trim()).filter(Boolean);
+  const companionNames = companions.map((entry) => entry.name.trim()).filter(Boolean);
   const companionRemarks = companionNames.length ? `Companions: ${companionNames.join(", ")}` : "";
   const [showNominateModal, setShowNominateModal] = useState(false);
   const [nominateInput, setNominateInput] = useState("");
@@ -180,15 +190,21 @@ export default function Guests() {
     setModal({ mode: "add" });
   };
   const openEdit = (g) => {
+    const parent = guests.find((main) => companionsFor(guests, main).some((child) => child._id === g._id));
+    const linked = parent ? [] : companionsFor(guests, g);
+    const partyPax = Number(g.pax || 1) + linked.length;
+    setCompanions(Array.from({ length: partyPax - 1 }, (_, index) =>
+      linked[index] ? { id: linked[index]._id, name: linked[index].name } : { id: "", name: "" },
+    ));
     setForm({
       name: g.name,
-      pax: g.pax || 1,
+      pax: parent ? 1 : partyPax,
       category: g.category,
       confirmed: g.confirmed,
       remarks: g.remarks || "",
       listedBy: g.listedBy || "",
     });
-    setModal({ mode: "edit", guest: g });
+    setModal({ mode: "edit", guest: g, parent, originalCompanions: linked });
   };
 
   const saveGuest = async () => {
@@ -214,13 +230,28 @@ export default function Guests() {
     setSaving(true);
     try {
       if (modal.mode === "edit") {
-        const res = await api.updateGuest(modal.guest._id, form);
-        patchData(
-          "guests",
-          guests.map((g) => (g._id === modal.guest._id ? res.data : g)),
-        );
+        const isMain = !modal.parent;
+        if (isMain) {
+          const retainedIds = new Set(companions.filter((entry) => entry.name.trim()).map((entry) => entry.id));
+          const removed = modal.originalCompanions.filter((guest) => !retainedIds.has(guest._id));
+          if (removed.length) {
+            const confirmation = await Swal.fire({
+              icon: "warning", title: "Remove companions?",
+              text: `${removed.map((guest) => guest.name).join(", ")} will be removed from the guest list and their seating assignments.`,
+              showCancelButton: true, confirmButtonColor: "#e74c3c",
+            });
+            if (!confirmation.isConfirmed) { setSaving(false); return; }
+          }
+        }
+        const res = await api.updateGuest(modal.guest._id, isMain ? { ...form, companions } : form);
+        if (res.data.guests) {
+          setEventData((prev) => ({ ...prev, guests: res.data.guests, seating: res.data.seating, presidentialSeating: res.data.presidentialSeating }));
+        } else {
+          const refreshed = await api.getGuests();
+          patchData("guests", refreshed.data);
+        }
       } else {
-        const res = await api.addGuest({ ...form, name: form.name.trim(), companions, remarks: companionRemarks });
+        const res = await api.addGuest({ ...form, name: form.name.trim(), companions: companions.map((entry) => entry.name), remarks: companionRemarks });
         setEventData((prev) => ({ ...prev, guests: [...prev.guests, ...res.data.guests] }));
       }
       setModal(null);
@@ -635,22 +666,23 @@ export default function Guests() {
                 max="50"
                 step="1"
                 value={form.pax}
+                disabled={Boolean(modal.parent)}
                 onChange={(e) => {
                   const pax = Math.min(50, Math.max(1, Math.floor(Number(e.target.value) || 1)));
                   setForm((f) => ({ ...f, pax }));
-                  setCompanions((names) => Array.from({ length: pax - 1 }, (_, i) => names[i] || ""));
+                  setCompanions((names) => Array.from({ length: pax - 1 }, (_, i) => names[i] || { id: "", name: "" }));
                 }}
               />
             </div>
-            {modal.mode === "add" && form.pax > 1 && (
+            {!modal.parent && form.pax > 1 && (
               <div className="form-group full">
                 <p>Optional: name companions to list and seat them separately. Unnamed places stay with the main guest.</p>
-                {companions.map((name, index) => (
+                {companions.map((entry, index) => (
                   <div className="form-group" key={index}>
                     <label htmlFor={`companion-${index}`}>Companion {index + 1}</label>
-                    <input id={`companion-${index}`} value={name} maxLength={120}
+                    <input id={`companion-${index}`} value={entry.name} maxLength={120}
                       placeholder="Companion full name"
-                      onChange={(e) => setCompanions((names) => names.map((value, i) => i === index ? e.target.value : value))} />
+                      onChange={(e) => setCompanions((names) => names.map((value, i) => i === index ? { ...value, name: e.target.value } : value))} />
                   </div>
                 ))}
               </div>
@@ -735,8 +767,8 @@ export default function Guests() {
               <label>Remarks</label>
               <textarea
                 rows="2"
-                value={modal.mode === "add" ? companionRemarks : form.remarks}
-                readOnly={modal.mode === "add"}
+                value={modal.parent ? `Companion of ${modal.parent.name}` : companionRemarks}
+                readOnly
                 onChange={(e) =>
                   setForm((f) => ({ ...f, remarks: e.target.value }))
                 }
