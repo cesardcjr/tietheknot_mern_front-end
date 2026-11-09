@@ -66,6 +66,7 @@ export default function Seating() {
   const planRef = useRef(plan);
   const hydratedRef = useRef(false);
   const movedRef = useRef(false);
+  const canvasPanRef = useRef(null);
 
   useEffect(() => { planRef.current = plan; }, [plan]);
   useEffect(() => {
@@ -196,6 +197,37 @@ export default function Seating() {
     setTableModal(null);
   };
 
+  const startCanvasPan = (event) => {
+    if (event.target !== event.currentTarget || !event.isPrimary || event.button !== 0) return;
+    if (!window.matchMedia('(max-width: 760px)').matches) {
+      setSelectedId(null);
+      return;
+    }
+    const canvas = event.currentTarget;
+    const viewport = canvas.parentElement;
+    canvas.setPointerCapture(event.pointerId);
+    canvasPanRef.current = {
+      id: event.pointerId, x: event.clientX, y: event.clientY,
+      left: viewport.scrollLeft, top: viewport.scrollTop, moved: false,
+    };
+  };
+
+  const moveCanvasPan = (event) => {
+    const start = canvasPanRef.current;
+    if (start?.id !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    start.moved ||= Math.abs(dx) + Math.abs(dy) > 4;
+    if (start.moved) event.currentTarget.parentElement.scrollTo(start.left - dx, start.top - dy);
+  };
+
+  const finishCanvasPan = (event) => {
+    const start = canvasPanRef.current;
+    if (start?.id !== event.pointerId) return;
+    canvasPanRef.current = null;
+    if (event.type === 'pointerup' && !start.moved) setSelectedId(null);
+  };
+
   const startMove = (event, element, mode = 'move') => {
     event.stopPropagation(); setSelectedId(element.id); movedRef.current = false;
     const bounds = event.currentTarget.closest('.floor-canvas').getBoundingClientRect();
@@ -304,8 +336,15 @@ export default function Seating() {
         <div className="floor-tool-divider" /><div className="floor-tool-group"><span>Venue elements</span><button onClick={addChair}><i className="fa fa-chair" /> Chair</button><button onClick={() => addShape('stage')}><i className="fa fa-microphone" /> Stage</button><button onClick={() => addShape('dance-floor')}><i className="fa fa-music" /> Dance floor</button><button onClick={() => addShape('custom')}><i className="fa fa-shapes" /> Marker</button></div>
         <div className="floor-tool-divider" /><div className="floor-tool-group floor-canvas-tools"><span>Canvas</span><label>W <input aria-label="Canvas width" type="number" min="400" max="3000" value={canvasDraft.width} onChange={(event) => setCanvasDraft((draft) => ({ ...draft, width: event.target.value }))} onBlur={() => resizeCanvas(canvasDraft.width, canvasDraft.height, true)} /></label><label>H <input aria-label="Canvas height" type="number" min="300" max="2000" value={canvasDraft.height} onChange={(event) => setCanvasDraft((draft) => ({ ...draft, height: event.target.value }))} onBlur={() => resizeCanvas(canvasDraft.width, canvasDraft.height, true)} /></label><button aria-label="Zoom out" onClick={() => setZoom((value) => clamp(Number((value - 0.1).toFixed(2)), 0.35, 1.5))}><i className="fa fa-magnifying-glass-minus" /></button><output>{Math.round(zoom * 100)}%</output><button aria-label="Zoom in" onClick={() => setZoom((value) => clamp(Number((value + 0.1).toFixed(2)), 0.35, 1.5))}><i className="fa fa-magnifying-glass-plus" /></button></div>
       </div>
+      {selected?.type === 'table' && (
+        <div className="floor-mobile-actions no-print">
+          <button type="button" className="btn-primary" onClick={() => openTable(selected)}>
+            <i className="fa fa-users" /> Manage guests
+          </button>
+        </div>
+      )}
       <div className="floor-workspace">
-        <div className="floor-canvas-wrap"><div id="seating-floor-print" className="floor-canvas" style={{ width: `${canvasWidth * zoom}px`, height: `${canvasHeight * zoom}px`, '--canvas-ratio': `${canvasWidth} / ${canvasHeight}` }} onPointerDown={(event) => { if (event.target === event.currentTarget) setSelectedId(null); }}>
+        <div className="floor-canvas-wrap"><div id="seating-floor-print" className="floor-canvas" style={{ width: `${canvasWidth * zoom}px`, height: `${canvasHeight * zoom}px`, '--canvas-ratio': `${canvasWidth} / ${canvasHeight}` }} onPointerDown={startCanvasPan} onPointerMove={moveCanvasPan} onPointerUp={finishCanvasPan} onLostPointerCapture={finishCanvasPan}>
           <div className="floor-print-heading"><strong>Venue Seating Plan</strong><span>{stats.tables} tables · {stats.seats} seats · {stats.seated} guests seated</span></div>
           {plan.elements.map((element) => {
             const isTable = element.type === 'table'; const assigned = isTable ? tableGuests(element) : []; const used = isTable ? occupiedPax(element) : 0;

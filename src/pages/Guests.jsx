@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import CircleProgress from "../components/CircleProgress";
 import Modal from "../components/Modal";
@@ -13,6 +13,54 @@ const CATEGORIES = [
   "VIP",
   "Others",
 ];
+
+const EMPTY_FILTERS = {
+  category: "",
+  listedBy: "",
+  status: "",
+  tableNum: "",
+  rsvpStatus: "",
+  confirmation: "",
+};
+
+const SPONSORS_PER_PAGE = 5;
+
+function SponsorList({ label, guests }) {
+  const [page, setPage] = useState(1);
+  const pages = Math.max(1, Math.ceil(guests.length / SPONSORS_PER_PAGE));
+  const currentPage = Math.min(page, pages);
+  const start = (currentPage - 1) * SPONSORS_PER_PAGE;
+  const visibleGuests = guests.slice(start, start + SPONSORS_PER_PAGE);
+
+  return (
+    <section className={"sponsor-block sponsor-block-" + label.toLowerCase()} aria-label={label + " Sponsors"}>
+      <div className="sponsor-header">
+        <h4>{label} Sponsors <span className="sponsor-count">{guests.length}</span></h4>
+      </div>
+      <div className={"sponsor-list-compact" + (pages > 1 ? " sponsor-list-paged" : "")}>
+        {visibleGuests.map((guest, index) => (
+          <div key={guest._id} className="sponsor-person">
+            <span className="sponsor-order">{String(start + index + 1).padStart(2, "0")}</span>
+            <span className="sponsor-name">{guest.name}</span>
+            <span className="sponsor-pax">{guest.pax || 1} pax</span>
+          </div>
+        ))}
+        {!guests.length && <div className="empty-row">No {label.toLowerCase()} sponsors yet.</div>}
+      </div>
+      {pages > 1 && (
+        <div className="pagination sponsor-pagination">
+          <button type="button" aria-label={"Previous " + label + " sponsors"} disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}>
+            <i className="fa fa-chevron-left" aria-hidden="true" />
+          </button>
+          <span aria-live="polite">{start + 1}–{start + visibleGuests.length} of {guests.length}</span>
+          <button type="button" aria-label={"Next " + label + " sponsors"} disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}>
+            <i className="fa fa-chevron-right" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
 
 const companionsFor = (guests, main) => {
   const listed = main.remarks?.startsWith("Companions: ")
@@ -29,14 +77,9 @@ export default function Guests() {
   const [modal, setModal] = useState(null); // null | {mode: 'add'|'edit', guest?: obj}
   const [page, setPage] = useState(1);
   const [sortOrder, setSortOrder] = useState("default"); // 'default', 'ascending', or 'listedBy'
-  const [filter, setFilter] = useState({
-    search: "",
-    category: "",
-    rsvpStatus: "",
-    status: "",
-    tableNum: "",
-    listedBy: "",
-  });
+  const [filter, setFilter] = useState({ search: "", ...EMPTY_FILTERS });
+  const [draftFilters, setDraftFilters] = useState(null);
+  const tableRef = useRef(null);
   const [form, setForm] = useState({
     name: "",
     pax: 1,
@@ -142,7 +185,35 @@ export default function Guests() {
   // ── Filter & Paginate ──────────────────────────────────────
   const listedByOptions = [...nominatedGuests].sort((a, b) => a.localeCompare(b));
 
+  const activeFilterCount = Object.keys(EMPTY_FILTERS).filter((key) => filter[key]).length;
+  const updateFilters = (selections, search = filter.search) => {
+    setFilter({ search, ...selections });
+    setPage(1);
+  };
+  const showKpiGuests = (selections) => {
+    updateFilters({ ...EMPTY_FILTERS, ...selections }, "");
+    tableRef.current?.scrollIntoView({ block: "start" });
+  };
+  const kpis = [
+    { label: "Total Pax", count: totalPax, action: () => showKpiGuests({}) },
+    { label: "Expected", count: expected, action: editExpectedCount },
+    { label: "Confirmed", count: confirmedCount, action: () => showKpiGuests({ confirmation: "confirmed" }) },
+    { label: "Seated", count: seatedCount, action: () => showKpiGuests({ status: "Seated" }) },
+    { label: "Not Seated", count: unseatedCount, tone: "unseated", action: () => showKpiGuests({ status: "Not Seated" }) },
+    { label: "Unconfirmed", count: unconfirmedCount, tone: "unconfirmed", action: () => showKpiGuests({ confirmation: "unconfirmed" }) },
+  ];
+  const filterFields = [
+    { key: "category", label: "Category", options: CATEGORIES },
+    { key: "listedBy", label: "Listed by", options: nominatedGuests },
+    { key: "status", label: "Seating status", options: ["Not Seated", "Seated"] },
+    { key: "tableNum", label: "Table", options: tableNums.map(String) },
+    { key: "rsvpStatus", label: "RSVP status", options: ["Pending", "Accepted", "Declined"] },
+    { key: "confirmation", label: "Guest confirmation", options: ["confirmed", "unconfirmed"] },
+  ];
+
   let filtered = [...guests];
+  if (filter.confirmation)
+    filtered = filtered.filter((guest) => Boolean(guest.confirmed) === (filter.confirmation === "confirmed"));
   if (filter.search)
     filtered = filtered.filter((g) =>
       g.name.toLowerCase().includes(filter.search.toLowerCase()),
@@ -370,65 +441,26 @@ export default function Guests() {
   return (
     <div>
       <div className="page-header-row">
-        <h2 className="page-title">Guest List</h2>
+        <h2 className="page-title guest-page-title">Guest List</h2>
       </div>
 
-      <div className="stats-panel">
-        <div className="stats-panel-inner">
-          <div className="stats-ring-col">
-            <CircleProgress pct={pct} size={110} stroke={10} color="#226b45" />
-            <div className="ring-label">Guests Entered</div>
-          </div>
-          <div className="stats-numbers-col">
-            <div className="stat-box">
-              <div className="stat-num">{totalPax}</div>
-              <div className="stat-label">Total Pax · {guests.length} entries</div>
-            </div>
-            <div className="stat-box" style={{ position: "relative" }}>
-              <div className="stat-num">{expected}</div>
-              <div className="stat-label">
-                Expected{" "}
-                <button
-                  onClick={editExpectedCount}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    color: "var(--accent)",
-                    fontSize: "0.75rem",
-                    padding: "0 0 0 4px",
-                  }}
-                >
-                  <i className="fa fa-pencil" />
-                </button>
-              </div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-num">{confirmedCount}</div>
-              <div className="stat-label">Confirmed</div>
-            </div>
-            <div className="stat-box">
-              <div className="stat-num">{seatedCount}</div>
-              <div className="stat-label">Seated</div>
-            </div>
-            <div className="stat-box" style={{ background: "var(--red-soft)" }}>
-              <div className="stat-num" style={{ color: "var(--red)" }}>
-                {unseatedCount}
-              </div>
-              <div className="stat-label">Not Seated</div>
-            </div>
-            <div
-              className="stat-box"
-              style={{ background: "var(--yellow-soft)" }}
-            >
-              <div className="stat-num" style={{ color: "var(--yellow)" }}>
-                {unconfirmedCount}
-              </div>
-              <div className="stat-label">Unconfirmed</div>
-            </div>
+      <section className="guest-kpi-panel" aria-label="Guest overview">
+        <div className="guest-kpi-summary">
+          <div><strong>{guests.length}</strong> Guest entries</div>
+          <div className="guest-kpi-progress">
+            <CircleProgress pct={pct} size={40} stroke={4} />
+            <span>of expected pax</span>
           </div>
         </div>
-      </div>
+        <div className="guest-kpi-grid">
+          {kpis.map(({ label, count, action, tone }) => (
+            <button key={label} type="button" className={"guest-kpi" + (tone ? " guest-kpi-" + tone : "")} onClick={action}>
+              <span>{label}</span>
+              <strong>{count}</strong>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <div className="guest-actions-bar">
         <button className="btn-primary" onClick={openAdd}>
@@ -436,6 +468,7 @@ export default function Guests() {
         </button>
         <button
           className="btn-outline"
+          aria-label="Nominate Guests"
           onClick={() => setShowNominateModal(true)}
           style={{
             backgroundColor: "var(--green-light)",
@@ -444,107 +477,88 @@ export default function Guests() {
             fontWeight: "600",
           }}
         >
-          <i className="fa fa-user-tie" /> Nominate Guests
+          <i className="fa fa-user-tie" aria-hidden="true" /> Nominate<span className="guest-action-extra"> Guests</span>
         </button>
         <button
           className="btn-outline"
           onClick={sortAlpha}
+          aria-label="Sort guests A to Z"
+          title="Sort guests A to Z"
           style={{ marginLeft: "auto" }}
         >
-          <i className="fa fa-arrow-down-a-z" /> Sort A–Z
+          <i className="fa fa-arrow-down-a-z" aria-hidden="true" /><span className="guest-action-extra"> Sort A–Z</span>
         </button>
       </div>
 
-      <div className="search-container">
+      <div className="guest-filter-toolbar">
         <input
-          type="text"
+          type="search"
           placeholder="Search guest name..."
-          className="search-input"
+          aria-label="Search guest name"
           value={filter.search}
-          onChange={(e) => {
-            setFilter((f) => ({ ...f, search: e.target.value }));
+          onChange={(event) => {
+            setFilter((current) => ({ ...current, search: event.target.value }));
             setPage(1);
           }}
         />
+        <button
+          type="button"
+          className="btn-outline guest-filter-button"
+          aria-label={activeFilterCount ? "Filters, " + activeFilterCount + " active" : "Filters"}
+          aria-haspopup="dialog"
+          onClick={() => setDraftFilters(Object.fromEntries(Object.keys(EMPTY_FILTERS).map((key) => [key, filter[key]])))}
+        >
+          <i className="fa fa-filter" aria-hidden="true" />
+          {activeFilterCount > 0 && <span className="sponsor-count">{activeFilterCount}</span>}
+        </button>
+        {activeFilterCount > 0 && (
+          <button type="button" className="btn-link guest-clear-filters" onClick={() => updateFilters(EMPTY_FILTERS)}>
+            Clear filters
+          </button>
+        )}
       </div>
 
-      <div className="filter-bar">
-        <select
-          value={filter.category}
-          onChange={(e) => {
-            setFilter((f) => ({ ...f, category: e.target.value }));
-            setPage(1);
-          }}
+      {draftFilters && (
+        <Modal
+          title="Guest filters"
+          onClose={() => setDraftFilters(null)}
+          footer={
+            <>
+              <button type="button" className="btn-outline" onClick={() => setDraftFilters({ ...EMPTY_FILTERS })}>Clear all</button>
+              <button type="button" className="btn-primary" onClick={() => {
+                updateFilters(draftFilters);
+                setDraftFilters(null);
+              }}>Apply filters</button>
+            </>
+          }
         >
-          <option value="">All Categories</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>
-              {c} Sponsors
-            </option>
-          ))}
-        </select>
-        <select
-          value={filter.listedBy}
-          onChange={(e) => {
-            setFilter((f) => ({ ...f, listedBy: e.target.value }));
-            setPage(1);
-          }}
-        >
-          <option value="">All Listed By</option>
-          {nominatedGuests.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filter.status}
-          onChange={(e) => {
-            setFilter((f) => ({ ...f, status: e.target.value }));
-            setPage(1);
-          }}
-        >
-          <option value="">All Status</option>
-          <option value="Not Seated">Not Seated</option>
-          <option value="Seated">Seated</option>
-        </select>
-        <select
-          value={filter.tableNum}
-          onChange={(e) => {
-            setFilter((f) => ({ ...f, tableNum: e.target.value }));
-            setPage(1);
-          }}
-        >
-          <option value="">All Tables</option>
-          {tableNums.map((t) => (
-            <option key={t} value={String(t)}>
-              Table {t}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filter.rsvpStatus}
-          onChange={(e) => {
-            setFilter((f) => ({ ...f, rsvpStatus: e.target.value }));
-            setPage(1);
-          }}
-        >
-          <option value="">All RSVP Statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Accepted">Accepted</option>
-          <option value="Declined">Declined</option>
-        </select>
-      </div>
+          <div className="form-grid">
+            {filterFields.map(({ key, label, options }) => (
+              <label className="form-group" key={key}>
+                <span>{label}</span>
+                <select value={draftFilters[key]} onChange={(event) => setDraftFilters((current) => ({ ...current, [key]: event.target.value }))}>
+                  <option value="">All</option>
+                  {options.map((option) => (
+                    <option key={option} value={option}>
+                      {key === "tableNum" ? "Table " + option : key === "confirmation" ? option[0].toUpperCase() + option.slice(1) : option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        </Modal>
+      )}
 
-      <div className="table-wrap">
-        <table className="data-table responsive-table">
+      <div className="table-wrap" ref={tableRef}>
+        <table className="data-table compact-table guest-table">
           <thead>
             <tr>
               <th>Name</th>
               <th>Pax</th>
-              <th>Category</th>
+              <th className="compact-table-hide">Category</th>
               <th>RSVP</th>
-              <th>Table</th>
+              <th className="compact-table-hide">Table</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -554,9 +568,10 @@ export default function Guests() {
                 <tr key={g._id}>
                   <td data-label="Name">
                     <strong>{g.name}</strong>
+                    <small className="compact-table-detail">{g.category}{g.tableNumber ? " · Table " + g.tableNumber : ""}</small>
                   </td>
                   <td data-label="Pax">{g.pax || 1}</td>
-                  <td data-label="Category">
+                  <td className="compact-table-hide" data-label="Category">
                     <span
                       className={`badge ${g.category === "Principal" ? "badge-principal" : g.category === "Secondary" ? "badge-secondary" : "badge-cat"}`}
                     >
@@ -568,7 +583,7 @@ export default function Guests() {
                       {g.rsvpStatus === "Pending" && g.confirmed ? "Accepted" : (g.rsvpStatus || (g.confirmed ? "Accepted" : "Pending"))}
                     </span>
                   </td>
-                  <td data-label="Table">{g.tableNumber || "—"}</td>
+                  <td className="compact-table-hide" data-label="Table">{g.tableNumber || "—"}</td>
                   <td data-label="Actions">
                     <div className="guest-row-actions">
                       <button className="btn-icon-sm" aria-label={`Edit ${g.name}`} onClick={() => openEdit(g)}>
@@ -610,42 +625,27 @@ export default function Guests() {
         </button>
       </div>
 
-      {/* Sponsor sections */}
       <div className="sponsor-section">
-        {[
-          { label: "Principal", list: principalGuests },
-          { label: "Secondary", list: secondaryGuests },
-        ].map(({ label, list }) => (
-          <div key={label} className={`sponsor-block sponsor-block-${label.toLowerCase()}`}>
-            <div className="sponsor-header">
-              <h4>
-                {label} Sponsors{" "}
-                <span className="sponsor-count">{list.length}</span>
-              </h4>
-            </div>
-            <div className="sponsor-list-compact">
-              {list.length ? (
-                list.map((g, index) => (
-                  <div key={g._id} className="sponsor-person">
-                    <span className="sponsor-order">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="sponsor-name">{g.name}</span>
-                    <span className="sponsor-pax">{g.pax || 1} pax</span>
-                  </div>
-                ))
-              ) : (
-                <div className="empty-row">
-                  No {label.toLowerCase()} sponsors yet.
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
+        <SponsorList label="Principal" guests={principalGuests} />
+        <SponsorList label="Secondary" guests={secondaryGuests} />
       </div>
 
       {modal && (
         <Modal
           title={modal.mode === "edit" ? "Edit Guest" : "Add Guest"}
           onClose={() => setModal(null)}
+          footer={<>
+            <button className="btn-outline" onClick={() => setModal(null)}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              onClick={saveGuest}
+              disabled={saving}
+            >
+              {saving ? "Saving…" : "Save Guest"}
+            </button>
+          </>}
         >
           <div className="form-grid">
             <div className="form-group full">
@@ -774,18 +774,6 @@ export default function Guests() {
                 }
               />
             </div>
-          </div>
-          <div className="modal-footer">
-            <button className="btn-outline" onClick={() => setModal(null)}>
-              Cancel
-            </button>
-            <button
-              className="btn-primary"
-              onClick={saveGuest}
-              disabled={saving}
-            >
-              {saving ? "Saving…" : "Save Guest"}
-            </button>
           </div>
         </Modal>
       )}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import Modal from '../components/Modal';
 import Swal from 'sweetalert2';
@@ -9,12 +9,28 @@ const TYPES = ['Catering','Styling','Photo-Video','HMUA','Host & Coordinators','
 
 const emptyForm = { supplierName: '', expenseType: 'Catering', cost: '', downpayment: '', contactPerson: '', contactNum: '', paymentStatus: 'Not Paid', paymentTracker: '' };
 
+const summaryDateFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+
 export default function Expenses() {
   const { eventData, setEventData } = useApp();
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [filter, setFilter] = useState({ search: '', type: '' });
   const [saving, setSaving] = useState(false);
+
+  const [summaryDate, setSummaryDate] = useState(() => new Date());
+
+  useEffect(() => {
+    let timer;
+    const refreshDate = () => {
+      const now = new Date();
+      const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      setSummaryDate(now);
+      timer = window.setTimeout(refreshDate, midnight - now);
+    };
+    refreshDate();
+    return () => window.clearTimeout(timer);
+  }, []);
 
   if (!eventData) return <div className="page-loading"><i className="fa fa-spinner fa-spin" /> Loading…</div>;
 
@@ -62,17 +78,17 @@ export default function Expenses() {
   const balance = () => {
     const c = parseFloat(form.cost) || 0, d = parseFloat(form.downpayment) || 0;
     if (d > c) return null;
+    if (form.paymentStatus === 'Paid') return 0;
     return c > 0 ? c - d : '';
   };
 
   const saveExpense = async () => {
     if (!form.supplierName.trim()) return Swal.fire({ icon: 'warning', title: 'Supplier name required', confirmButtonColor: '#226b45' });
     const cost = parseFloat(form.cost) || 0;
-    let down = parseFloat(form.downpayment) || 0;
+    const down = parseFloat(form.downpayment) || 0;
     if (cost < 0 || down < 0) return Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Amounts cannot be negative.', confirmButtonColor: '#226b45' });
     if (down > cost) return Swal.fire({ icon: 'error', title: 'Invalid Amount', text: 'Downpayment cannot exceed total cost.', confirmButtonColor: '#226b45' });
     let paymentStatus = form.paymentStatus;
-    if (paymentStatus === 'Paid') down = cost;
     if (down > 0 && paymentStatus === 'Not Paid') paymentStatus = 'Incomplete';
     const data = { ...form, cost, downpayment: down, paymentStatus };
     setSaving(true);
@@ -116,9 +132,19 @@ export default function Expenses() {
       </div>
 
       <div className="budget-dashboard">
+        <div className="budget-item budget-total-card">
+          <span className="budget-label">Total Budget</span>
+          <div className="budget-edit-row">
+            <span className="budget-val">₱{fmt(budget)}</span>
+            <button className="btn-edit-budget" aria-label="Edit total budget" onClick={editBudget}><i className="fa fa-pencil" aria-hidden="true" /></button>
+          </div>
+        </div>
         <div className="budget-summary">
-          <div className="budget-item"><span className="budget-label">Total Budget</span><div className="budget-edit-row"><span className="budget-val">₱{fmt(budget)}</span><button className="btn-edit-budget" onClick={editBudget}><i className="fa fa-pencil" /></button></div></div>
-          <div className="budget-item"><span className="budget-label">Total Expenses</span><span className="budget-val spent">₱{fmt(totalExp)}</span></div>
+          <div className="budget-item budget-expenses-log">
+            <span className="budget-label">Current Expenses Log</span>
+            <span className="budget-val spent">₱{fmt(totalExp)}</span>
+            <span className="budget-summary-date">As of {summaryDateFormatter.format(summaryDate)}</span>
+          </div>
           <div className="budget-item"><span className="budget-label">Remaining Budget</span><span className={`budget-val ${remaining < 0 ? 'over' : 'remain'}`}>₱{fmt(remaining)}{remaining < 0 && <i className="fa fa-triangle-exclamation" style={{ fontSize: '0.8em' }} />}</span></div>
           <div className="budget-item"><span className="budget-label">Total Balance Unpaid</span><span className="budget-val spent">₱{fmt(totalBalanceUnpaid)}</span></div>
         </div>
@@ -137,8 +163,8 @@ export default function Expenses() {
       </div>
 
       <div className="table-wrap">
-        <table className="data-table expense-table responsive-table">
-          <thead><tr><th>Supplier</th><th style={{ textAlign: 'center' }}>Type</th><th>Total Cost</th><th>Progress</th><th>Balance</th><th>Actions</th></tr></thead>
+        <table className="data-table expense-table compact-table">
+          <thead><tr><th>Supplier</th><th className="compact-table-hide" style={{ textAlign: 'center' }}>Type</th><th>Total Cost</th><th className="compact-table-hide">Progress</th><th className="compact-table-hide">Balance</th><th>Actions</th></tr></thead>
           <tbody>
             {filtered.length ? filtered.map(e => {
               const bal = Number(e.cost || 0) - Number(e.downpayment || 0);
@@ -147,14 +173,16 @@ export default function Expenses() {
               const barColor = e.paymentStatus === 'Paid' ? '#4caf50' : e.paymentStatus === 'Incomplete' ? '#ff9800' : '#f44336';
               return (
                 <tr key={e._id} className={rowClass}>
-                  <td data-label="Supplier"><strong>{e.supplierName}</strong></td>
-                  <td data-label="Type" style={{ textAlign: 'center' }}><span className="badge badge-cat">{e.expenseType}</span></td>
-                  <td data-label="Total Cost">₱{fmt(e.cost)}</td>
-                  <td data-label="Progress"><div className="payment-progress"><div style={{ width: `${pct}%`, background: barColor }}>{Math.round(pct)}%</div></div></td>
-                  <td data-label="Balance"><strong>{e.paymentStatus === 'Paid' ? '—' : `₱${fmt(bal)}`}</strong></td>
+                  <td data-label="Supplier"><strong>{e.supplierName}</strong><small className="compact-table-detail">{e.expenseType} · {Math.round(pct)}% paid</small></td>
+                  <td className="compact-table-hide" data-label="Type" style={{ textAlign: 'center' }}><span className="badge badge-cat">{e.expenseType}</span></td>
+                  <td data-label="Total Cost">₱{fmt(e.cost)}<small className="compact-table-detail">Balance {e.paymentStatus === 'Paid' ? '—' : '₱' + fmt(bal)}</small></td>
+                  <td className="compact-table-hide" data-label="Progress"><div className="payment-progress"><div style={{ width: `${pct}%`, background: barColor }} /><span>{Math.round(pct)}%</span></div></td>
+                  <td className="compact-table-hide" data-label="Balance"><strong>{e.paymentStatus === 'Paid' ? '—' : `₱${fmt(bal)}`}</strong></td>
                   <td data-label="Actions">
-                    <button className="btn-icon-sm" onClick={() => openEdit(e)}><i className="fa fa-edit" /></button>
-                    <button className="btn-icon-sm danger" onClick={() => deleteExpense(e)}><i className="fa fa-trash" /></button>
+                    <div className="expense-row-actions">
+  <button className="btn-icon-sm" aria-label={"Edit " + e.supplierName} onClick={() => openEdit(e)}><i className="fa fa-edit" /></button>
+  <button className="btn-icon-sm danger" aria-label={"Delete " + e.supplierName} onClick={() => deleteExpense(e)}><i className="fa fa-trash" /></button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -169,22 +197,23 @@ export default function Expenses() {
       </div>
 
       {modal && (
-        <Modal title={modal.mode === 'edit' ? 'Edit Expense' : 'Add Expense'} onClose={() => setModal(null)} wide>
+        <Modal title={modal.mode === 'edit' ? 'Edit Expense' : 'Add Expense'} onClose={() => setModal(null)} wide
+          footer={<>
+            <button className="btn-outline" onClick={() => setModal(null)}>Cancel</button>
+            <button className="btn-primary" onClick={saveExpense} disabled={saving || b === null}>{saving ? 'Saving…' : 'Save Expense'}</button>
+          </>}
+        >
           <div className="form-grid">
             <div className="form-group full"><label>Supplier Name *</label><input value={form.supplierName} onChange={e => setForm(f => ({ ...f, supplierName: e.target.value }))} /></div>
             <div className="form-group"><label>Expense Type</label><select value={form.expenseType} onChange={e => setForm(f => ({ ...f, expenseType: e.target.value }))}>{TYPES.map(t => <option key={t}>{t}</option>)}</select></div>
             <div className="form-group"><label>Total Cost (₱) *</label><input type="number" min="0" value={form.cost} onChange={e => setForm(f => ({ ...f, cost: e.target.value }))} /></div>
             <div className="form-group"><label>Contact Person</label><input value={form.contactPerson} onChange={e => setForm(f => ({ ...f, contactPerson: e.target.value }))} /></div>
             <div className="form-group"><label>Contact Number</label><input value={form.contactNum} onChange={e => setForm(f => ({ ...f, contactNum: e.target.value }))} /></div>
-            <div className="form-group"><label>Payment Status</label><select value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value, downpayment: e.target.value === 'Paid' ? f.cost : f.downpayment }))}>{['Paid','Incomplete','Not Paid'].map(s => <option key={s}>{s}</option>)}</select></div>
-            <div className="form-group"><label>Downpayment (₱)</label><input type="number" min="0" value={form.downpayment} disabled={form.paymentStatus === 'Paid'} onChange={e => setForm(f => ({ ...f, downpayment: e.target.value }))} /></div>
+            <div className="form-group"><label>Payment Status</label><select value={form.paymentStatus} onChange={e => setForm(f => ({ ...f, paymentStatus: e.target.value }))}>{['Paid','Incomplete','Not Paid'].map(s => <option key={s}>{s}</option>)}</select></div>
+            <div className="form-group"><label>Downpayment (₱)</label><input type="number" min="0" value={form.downpayment} onChange={e => setForm(f => ({ ...f, downpayment: e.target.value }))} /></div>
             <div className="form-group"><label>Balance (₱)</label><input type="text" readOnly className="input-readonly" value={b === null ? '⚠ Downpayment exceeds cost' : b !== '' ? fmt(b) : ''} placeholder="Auto-computed" /></div>
             {b === null && <div className="balance-error" style={{ gridColumn: '1/-1' }}><i className="fa fa-triangle-exclamation" /> Downpayment cannot exceed total cost.</div>}
             <div className="form-group full"><label>Payment Tracker / Updates</label><div className="payment-tracker-wrap"><textarea rows="4" placeholder="• [Date] Downpayment sent via GCash" value={form.paymentTracker} onChange={e => setForm(f => ({ ...f, paymentTracker: e.target.value }))} /><div className="payment-tracker-hint">Use bullet points (•) to log payment updates with dates.</div></div></div>
-          </div>
-          <div className="modal-footer">
-            <button className="btn-outline" onClick={() => setModal(null)}>Cancel</button>
-            <button className="btn-primary" onClick={saveExpense} disabled={saving || b === null}>{saving ? 'Saving…' : 'Save Expense'}</button>
           </div>
         </Modal>
       )}
