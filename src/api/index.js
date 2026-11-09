@@ -39,6 +39,7 @@ export const updateGuestSettings = (data) =>
   api.put("/data/guest-settings", data);
 
 // Guests
+export const getGuestRsvpUpdates = (signal) => api.get("/invitations/rsvp/guest-updates", { signal, preserveSessionOnAuthError: true });
 export const getGuests = () => api.get("/data/guests");
 export const addGuest = (data) => api.post("/data/guests", data);
 export const updateGuest = (id, data) => api.put(`/data/guests/${id}`, data);

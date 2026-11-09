@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useApp } from "../context/AppContext";
 import CircleProgress from "../components/CircleProgress";
 import Modal from "../components/Modal";
@@ -94,6 +94,41 @@ export default function Guests() {
   const companionRemarks = companionNames.length ? `Companions: ${companionNames.join(", ")}` : "";
   const [showNominateModal, setShowNominateModal] = useState(false);
   const [nominateInput, setNominateInput] = useState("");
+
+  useEffect(() => {
+    let pending;
+    async function refreshResponses() {
+      if (document.hidden || pending) return;
+      const request = new AbortController();
+      pending = request;
+      try {
+        const { data } = await api.getGuestRsvpUpdates(request.signal);
+        if (request.signal.aborted) return;
+        const updates = new Map(data.guests.map((guest) => [String(guest._id), guest]));
+        setEventData((current) => {
+          if (!current) return current;
+          let changed = false;
+          const guests = current.guests.map((guest) => {
+            const update = updates.get(String(guest._id));
+            if (!update || Date.parse(update.respondedAt) <= (Date.parse(guest.respondedAt) || 0)) return guest;
+            changed = true;
+            return { ...guest, ...update };
+          });
+          return changed ? { ...current, guests } : current;
+        });
+      } catch {
+        // Keep the current table visible and retry at the next refresh.
+      } finally { if (pending === request) pending = null; }
+    }
+    refreshResponses();
+    const interval = window.setInterval(refreshResponses, 5000);
+    document.addEventListener("visibilitychange", refreshResponses);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshResponses);
+      pending?.abort();
+    };
+  }, [setEventData]);
 
   if (!eventData)
     return (
