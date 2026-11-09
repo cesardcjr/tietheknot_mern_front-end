@@ -138,11 +138,11 @@ export default function Expenses() {
       <div className="budget-dashboard">
         <div className="budget-top-summary">
           <div className="budget-item">
-            <span className="budget-label">Total Budget</span>
             <div className="budget-edit-row">
-              <span className="budget-val">₱{fmt(budget)}</span>
+              <span className="budget-label">Total Budget</span>
               <button className="btn-edit-budget" aria-label="Edit total budget" onClick={editBudget}><i className="fa fa-pencil" aria-hidden="true" /></button>
             </div>
+            <span className="budget-val">₱{fmt(budget)}</span>
           </div>
           <div className="budget-item">
             <span className="budget-label">Total Settled</span>
