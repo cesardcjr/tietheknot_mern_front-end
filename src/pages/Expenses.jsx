@@ -59,6 +59,10 @@ export default function Expenses() {
 
   const budget = expenseSettings.budget || 0;
   const totalExp = expenses.reduce((a, e) => a + Number(e.cost || 0), 0);
+  const totalSettled = expenses.reduce((total, expense) => {
+    const payment = expense.paymentStatus === 'Paid' ? expense.cost : expense.downpayment;
+    return total + Number(payment || 0);
+  }, 0);
   const remaining = budget - totalExp;
   const totalBalanceUnpaid = expenses.reduce((a, e) => e.paymentStatus === 'Paid' ? a : a + (Number(e.cost || 0) - Number(e.downpayment || 0)), 0);
   const expPct = budget > 0 ? Math.min(100, (totalExp / budget) * 100) : 0;
@@ -132,18 +136,24 @@ export default function Expenses() {
       </div>
 
       <div className="budget-dashboard">
-        <div className="budget-item budget-total-card">
-          <span className="budget-label">Total Budget</span>
-          <div className="budget-edit-row">
-            <span className="budget-val">₱{fmt(budget)}</span>
-            <button className="btn-edit-budget" aria-label="Edit total budget" onClick={editBudget}><i className="fa fa-pencil" aria-hidden="true" /></button>
+        <div className="budget-top-summary">
+          <div className="budget-item">
+            <span className="budget-label">Total Budget</span>
+            <div className="budget-edit-row">
+              <span className="budget-val">₱{fmt(budget)}</span>
+              <button className="btn-edit-budget" aria-label="Edit total budget" onClick={editBudget}><i className="fa fa-pencil" aria-hidden="true" /></button>
+            </div>
+          </div>
+          <div className="budget-item">
+            <span className="budget-label">Total Settled</span>
+            <span className="budget-val remain">₱{fmt(totalSettled)}</span>
+            <span className="budget-summary-date">As of {summaryDateFormatter.format(summaryDate)}</span>
           </div>
         </div>
         <div className="budget-summary">
           <div className="budget-item budget-expenses-log">
             <span className="budget-label">Current Expenses Log</span>
             <span className="budget-val spent">₱{fmt(totalExp)}</span>
-            <span className="budget-summary-date">As of {summaryDateFormatter.format(summaryDate)}</span>
           </div>
           <div className="budget-item"><span className="budget-label">Remaining Budget</span><span className={`budget-val ${remaining < 0 ? 'over' : 'remain'}`}>₱{fmt(remaining)}{remaining < 0 && <i className="fa fa-triangle-exclamation" style={{ fontSize: '0.8em' }} />}</span></div>
           <div className="budget-item"><span className="budget-label">Total Balance Unpaid</span><span className="budget-val spent">₱{fmt(totalBalanceUnpaid)}</span></div>

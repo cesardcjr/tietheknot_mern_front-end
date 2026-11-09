@@ -3118,7 +3118,12 @@ textarea:focus-visible,
   }
 }
 
-.budget-total-card { margin-bottom: 0.65rem; }
+.budget-top-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
 .budget-dashboard .budget-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .budget-dashboard .budget-val { overflow-wrap: anywhere; }
 .budget-edit-row .budget-val { min-width: 0; }
@@ -3127,6 +3132,8 @@ textarea:focus-visible,
 @media (max-width: 600px) {
   .budget-dashboard .budget-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .budget-expenses-log { grid-column: 1 / -1; }
+  .budget-top-summary .budget-item,
   .budget-summary .budget-item { padding-inline: 0.55rem; }
+  .budget-top-summary .budget-val,
   .budget-summary .budget-val { font-size: 1rem; }
 }
