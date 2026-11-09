@@ -13,7 +13,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if ([401, 403].includes(err.response?.status)) {
+    if (!err.config?.preserveSessionOnAuthError && [401, 403].includes(err.response?.status)) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       window.location.href = "/";
@@ -24,7 +24,7 @@ api.interceptors.response.use(
 
 // Auth
 export const register = (data) => api.post("/auth/register", data);
-export const startStudioHandoff = (challenge) => api.post("/auth/studio-handoff", { challenge });
+export const startStudioHandoff = (challenge) => api.post("/auth/studio-handoff", { challenge }, { preserveSessionOnAuthError: true });
 export const login = (data) => api.post("/auth/login", data);
 
 // Event data

@@ -17,10 +17,22 @@ export default function StudioHandoff() {
     startStudioHandoff(challenge).then(({ data }) => {
       const callback = new URL(data.callback);
       const expected = new URL(import.meta.env.VITE_INVITATION_APP_URL || "http://localhost:5174");
-      if (callback.origin !== expected.origin || callback.pathname !== "/handoff") throw Error("Unexpected Studio address");
+      if (callback.origin !== expected.origin || callback.pathname !== "/handoff") {
+        setError("Invitation Studio’s address does not match the Planner configuration.");
+        return;
+      }
       callback.hash = new URLSearchParams({ code: data.code, state }).toString();
       window.location.replace(callback.href);
-    }).catch(() => setError("Sign in to Planner, then open Invitation Studio again."));
+    }).catch((error) => {
+      const status = error.response?.status;
+      if (status === 401 || status === 403) {
+        setError("Your Planner session could not be verified. Return to Planner and sign in again.");
+      } else if (status === 429) {
+        setError("Too many Studio sign-in attempts. Wait a minute and try again.");
+      } else {
+        setError("Invitation Studio could not start. Return to Planner and try again.");
+      }
+    });
   }, []);
   return <main className="page-loading">{error ? <div><p>{error}</p><a href="/">Return to Planner</a></div> : "Opening Invitation Studio…"}</main>;
 }
