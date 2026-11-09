@@ -145,7 +145,7 @@ export default function App() {
           ))}
         </nav>
         <div className="sidebar-footer">
-          <a className="btn-studio" href={invitationAppUrl} target="_blank" rel="noreferrer">
+          <a className="btn-studio" href={new URL("/handoff/start", invitationAppUrl).href} target="_blank" rel="noreferrer">
             <i className="fa fa-envelope-open-text" /><span>Invitation Studio</span>
           </a>
           <button className="btn-logout" onClick={handleLogout}>

@@ -24,6 +24,7 @@ api.interceptors.response.use(
 
 // Auth
 export const register = (data) => api.post("/auth/register", data);
+export const startStudioHandoff = (challenge) => api.post("/auth/studio-handoff", { challenge });
 export const login = (data) => api.post("/auth/login", data);
 
 // Event data
