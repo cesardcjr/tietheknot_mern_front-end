@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef } from 'react';
 
-export default function Modal({ title, onClose, wide, children }) {
+export default function Modal({ title, onClose, wide, footer, children }) {
   const dialogRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const titleId = useId();
@@ -50,6 +50,7 @@ export default function Modal({ title, onClose, wide, children }) {
           <button type="button" className="modal-close" aria-label="Close dialog" onClick={onClose}><i className="fa fa-times" /></button>
         </div>
         <div className="modal-body">{children}</div>
+        {footer && <div className="modal-footer modal-footer-fixed">{footer}</div>}
       </div>
     </div>
   );
