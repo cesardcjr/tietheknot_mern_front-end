@@ -71,14 +71,14 @@ export default function Program() {
               <span className="time-dash">—</span>
               <span>{item.endTime}</span>
             </div>
-            <div className="timeline-dot" />
+            <div className="timeline-dot" aria-hidden="true" />
             <div className="timeline-content">
               <div className="timeline-title">{item.title}</div>
               {item.details && <div className="timeline-details">{item.details}</div>}
             </div>
             <div className="timeline-actions">
-              <button className="btn-icon-sm" onClick={() => openEdit(item)}><i className="fa fa-edit" /></button>
-              <button className="btn-icon-sm danger" onClick={() => deleteItem(item)}><i className="fa fa-trash" /></button>
+              <button aria-label="Edit activity" className="btn-icon-sm" onClick={() => openEdit(item)}><i className="fa fa-edit" /></button>
+              <button aria-label="Delete activity" className="btn-icon-sm danger" onClick={() => deleteItem(item)}><i className="fa fa-trash" /></button>
             </div>
           </div>
         )) : <div className="empty-row">No activities yet.</div>}

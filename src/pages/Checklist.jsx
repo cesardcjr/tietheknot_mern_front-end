@@ -98,14 +98,14 @@ export default function Checklist() {
       <div className="checklist-list">
         {filtered.length ? filtered.map(item => (
           <div key={item._id} className={`checklist-item${item.checked ? ' checked' : ''}`}>
-            <input type="checkbox" checked={item.checked} onChange={e => toggleItem(item, e.target.checked)} />
+            <input type="checkbox" aria-label={"Mark " + item.title + " complete"} checked={item.checked} onChange={e => toggleItem(item, e.target.checked)} />
             <div className="checklist-text">
               <span className="checklist-title">{item.title}</span>
               {item.details && <span className="checklist-details">{item.details}</span>}
             </div>
             <div className="checklist-actions">
-              <button className="btn-icon-sm" onClick={() => openEdit(item)}><i className="fa fa-edit" /></button>
-              <button className="btn-icon-sm danger" onClick={() => deleteItem(item)}><i className="fa fa-trash" /></button>
+              <button aria-label="Edit checklist item" className="btn-icon-sm" onClick={() => openEdit(item)}><i className="fa fa-edit" /></button>
+              <button aria-label="Delete checklist item" className="btn-icon-sm danger" onClick={() => deleteItem(item)}><i className="fa fa-trash" /></button>
             </div>
           </div>
         )) : <div className="empty-row">{filter.search || filter.done ? 'No items match your filter.' : 'No checklist items yet.'}</div>}

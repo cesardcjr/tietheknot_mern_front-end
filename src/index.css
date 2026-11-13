@@ -2879,6 +2879,14 @@ textarea:focus-visible,
   display: none;
 }
 
+.task-due-date { display: block; color: var(--text3); font-size: .75rem; }
+.tasks-table td:first-child { overflow-wrap: anywhere; }
+.task-row-actions { display: flex; justify-content: center; }
+.checklist-text, .timeline-content, .supplier-card { min-width: 0; overflow-wrap: anywhere; }
+.form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-grid > *, .form-group :is(input, select, textarea) { min-width: 0; }
+.form-group :is(input, select, textarea) { max-width: 100%; }
+
 @media (max-width: 760px) {
   .floor-mobile-actions {
     display: flex;
@@ -2958,6 +2966,38 @@ textarea:focus-visible,
   .compact-table .btn-icon-sm {
     padding: 0;
   }
+
+  .form-grid { grid-template-columns: minmax(0, 1fr); }
+  .modal-box { max-height: 95dvh; }
+  .modal-footer { flex-wrap: wrap; }
+
+  .tasks-table th:nth-child(2) { width: 6.7rem; }
+  .tasks-table .status-select { width: 100%; min-width: 0; min-height: var(--touch-target); padding-inline: .25rem; }
+  .task-row-actions { justify-content: flex-end; }
+
+  .checklist-item, .timeline-item, .supplier-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .25rem .5rem;
+    padding: .5rem .65rem;
+    align-items: center;
+  }
+  .checklist-item { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .checklist-title, .timeline-title, .supplier-name { margin: 0; }
+  .checklist-actions, .timeline-actions, .supplier-card-actions { gap: .1rem; }
+  .timeline-item { grid-template-areas: "content actions" "time actions"; }
+  .timeline-content { grid-area: content; padding-bottom: 0; }
+  .timeline-time { grid-area: time; flex-direction: row; flex-wrap: wrap; width: auto; gap: .25rem; }
+  .timeline-actions { grid-area: actions; }
+  .timeline-dot, .program-timeline::before { display: none; }
+  .supplier-grid { grid-auto-rows: auto; }
+  .supplier-card { min-height: 0; align-items: start; }
+  .supplier-card-header { display: contents; }
+  .supplier-card-header .badge { grid-area: 2 / 1; justify-self: start; white-space: normal; }
+  .supplier-card-actions { grid-area: 1 / 2 / span 2; }
+  .supplier-name { grid-area: 1 / 1; }
+  .supplier-card :is(.supplier-detail, .supplier-quote) { grid-column: 1 / -1; }
+  .supplier-card .supplier-quote { display: block; margin-top: 0; }
 
   .modal-box:has(> .modal-footer-fixed) {
     max-height: 95dvh;
