@@ -84,20 +84,20 @@ export default function Tasks() {
       </div>
 
       <div className="table-wrap">
-        <table className="data-table responsive-table">
+        <table className="data-table compact-table tasks-table">
           <thead><tr><th>Title</th><th style={{ textAlign: 'center' }}>Status</th><th style={{ textAlign: 'center' }}>Actions</th></tr></thead>
           <tbody>
             {sorted.length ? sorted.map(t => (
               <tr key={t._id} className={isOverdue(t.dueDate, t.status) ? 'row-overdue' : ''}>
-                <td data-label="Task"><strong>{t.title}</strong>{t.dueDate && <div style={{ fontSize: '0.75rem', color: 'var(--text3)' }}>{t.dueDate}</div>}</td>
+                <td data-label="Task"><strong>{t.title}</strong>{t.dueDate && <small className="task-due-date">{t.dueDate}</small>}{t.details && <small className="compact-table-detail">{t.details}</small>}</td>
                 <td data-label="Status" style={{ textAlign: 'center' }}>
-                  <select className={`status-select status-${(t.status || '').replace(/[\s-]+/g, '-').toLowerCase()}`} value={t.status} onChange={e => quickUpdate(t, e.target.value)}>
+                  <select aria-label={"Status for " + t.title} className={`status-select status-${(t.status || '').replace(/[\s-]+/g, '-').toLowerCase()}`} value={t.status} onChange={e => quickUpdate(t, e.target.value)}>
                     {STATUSES.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </td>
-                <td data-label="Actions" style={{ textAlign: 'center' }}>
-                  <button className="btn-icon-sm" onClick={() => openEdit(t)}><i className="fa fa-edit" /></button>
-                  <button className="btn-icon-sm danger" onClick={() => deleteTask(t)}><i className="fa fa-trash" /></button>
+                <td data-label="Actions" style={{ textAlign: 'center' }}><div className="task-row-actions">
+                  <button aria-label="Edit task" className="btn-icon-sm" onClick={() => openEdit(t)}><i className="fa fa-edit" /></button>
+                  <button aria-label="Delete task" className="btn-icon-sm danger" onClick={() => deleteTask(t)}><i className="fa fa-trash" /></button></div>
                 </td>
               </tr>
             )) : <tr><td colSpan="3" className="empty-row">No tasks yet.</td></tr>}

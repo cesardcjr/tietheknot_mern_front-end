@@ -79,8 +79,8 @@ export default function Suppliers() {
             <div className="supplier-card-header">
               <span className="badge badge-cat">{s.categoryType}</span>
               <div className="supplier-card-actions">
-                <button className="btn-icon-sm" onClick={() => openEdit(s)}><i className="fa fa-edit" /></button>
-                <button className="btn-icon-sm danger" onClick={() => deleteSupplier(s)}><i className="fa fa-trash" /></button>
+                <button aria-label="Edit supplier" className="btn-icon-sm" onClick={() => openEdit(s)}><i className="fa fa-edit" /></button>
+                <button aria-label="Delete supplier" className="btn-icon-sm danger" onClick={() => deleteSupplier(s)}><i className="fa fa-trash" /></button>
               </div>
             </div>
             <h4 className="supplier-name">{s.supplierName}</h4>
